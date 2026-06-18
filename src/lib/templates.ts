@@ -83,4 +83,32 @@ export const templates: Template[] = [
       background_color: '#F9FAFB',
     }),
   },
+  {
+    id: 'equipment-rental',
+    name: 'Equipment / storage rental',
+    description: 'Logo header, slab font, feature badges, quote form.',
+    build: () => ({
+      ...emptyCard,
+      header_style: 'logo' as const,
+      font_family: 'slab' as const,
+      button_shape: 'square' as const,
+      primary_color: '#C2410C',
+      secondary_color: '#3F4A1C',
+      background_color: '#F5F5F4',
+      tagline: 'Delivering storage.\nSolving space.',
+      features: [
+        { icon: '🔒', label: 'Secure' },
+        { icon: '🚚', label: 'Delivered to you' },
+        { icon: '📦', label: 'Rent by the month' },
+      ],
+      links_heading: 'Get Started',
+      business_links: [
+        { label: 'Get a Quote', url: '', icon: '' },
+        { label: 'Sizes & Pricing', url: '', icon: '' },
+      ],
+      form_enabled: true,
+      form_heading: 'Reserve a unit',
+      footer_text: '©2026 Your Rental Company',
+    }),
+  },
 ];

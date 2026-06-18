@@ -21,6 +21,16 @@ export interface ReviewLink {
   url: string;
 }
 
+export interface FeatureBadge {
+  icon: string;
+  label: string;
+}
+
+export interface GalleryItem {
+  url: string;
+  caption: string;
+}
+
 export interface Card {
   id: string;
   owner_id: string;
@@ -49,6 +59,11 @@ export interface Card {
   secondary_color: string;
   background_color: string;
 
+  header_style: 'photo' | 'logo' | 'banner';
+  photo_shape: 'circle' | 'rounded';
+  font_family: 'sans' | 'serif' | 'rounded' | 'slab';
+  button_shape: 'rounded' | 'pill' | 'square';
+
   links_heading: string;
   business_links: BusinessLink[];
   extra_buttons: ExtraButton[];
@@ -57,6 +72,11 @@ export interface Card {
 
   calendar_url: string;
   resources_url: string;
+
+  about_heading: string;
+  about_text: string;
+  features: FeatureBadge[];
+  gallery: GalleryItem[];
 
   form_enabled: boolean;
   form_heading: string;
@@ -89,6 +109,10 @@ export const emptyCard: CardDraft = {
   primary_color: '#EA580C',
   secondary_color: '#1E3A8A',
   background_color: '#EFF6FF',
+  header_style: 'photo',
+  photo_shape: 'circle',
+  font_family: 'sans',
+  button_shape: 'rounded',
   links_heading: '',
   business_links: [],
   extra_buttons: [],
@@ -96,6 +120,10 @@ export const emptyCard: CardDraft = {
   review_links: [],
   calendar_url: '',
   resources_url: '',
+  about_heading: '',
+  about_text: '',
+  features: [],
+  gallery: [],
   form_enabled: false,
   form_heading: '',
   form_subtext: '',

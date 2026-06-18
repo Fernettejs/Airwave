@@ -265,6 +265,82 @@ export default function CardEditor() {
             </div>
           </Section>
 
+          <Section title="Style">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Header layout">
+                <select className={inputCls} value={draft.header_style} onChange={(e) => set('header_style', e.target.value as CardDraft['header_style'])}>
+                  <option value="photo">Photo (profile photo over banner)</option>
+                  <option value="logo">Logo at top</option>
+                  <option value="banner">Banner only</option>
+                </select>
+              </Field>
+              <Field label="Photo shape" hint="Applies to profile photo in Photo layout.">
+                <select className={inputCls} value={draft.photo_shape} onChange={(e) => set('photo_shape', e.target.value as CardDraft['photo_shape'])}>
+                  <option value="circle">Circle</option>
+                  <option value="rounded">Rounded square</option>
+                </select>
+              </Field>
+              <Field label="Font">
+                <select className={inputCls} value={draft.font_family} onChange={(e) => set('font_family', e.target.value as CardDraft['font_family'])}>
+                  <option value="sans">Sans-serif (default)</option>
+                  <option value="serif">Serif (Georgia)</option>
+                  <option value="rounded">Rounded (Nunito)</option>
+                  <option value="slab">Slab serif (Roboto Slab)</option>
+                </select>
+              </Field>
+              <Field label="Button shape">
+                <select className={inputCls} value={draft.button_shape} onChange={(e) => set('button_shape', e.target.value as CardDraft['button_shape'])}>
+                  <option value="rounded">Rounded (10px)</option>
+                  <option value="pill">Pill</option>
+                  <option value="square">Square (4px)</option>
+                </select>
+              </Field>
+            </div>
+          </Section>
+
+          <Section title="About">
+            <Field label="Heading">
+              <input className={inputCls} value={draft.about_heading} onChange={(e) => set('about_heading', e.target.value)} placeholder="About us" />
+            </Field>
+            <Field label="Text" hint="Line breaks are kept.">
+              <textarea
+                className={`${inputCls} min-h-[100px]`}
+                value={draft.about_text}
+                onChange={(e) => set('about_text', e.target.value)}
+              />
+            </Field>
+          </Section>
+
+          <Section title="Feature badges">
+            <Repeater
+              items={draft.features}
+              onChange={(v) => set('features', v)}
+              blank={{ icon: '', label: '' }}
+              addLabel="Add badge"
+              render={(item, update) => (
+                <div className="grid gap-2 sm:grid-cols-[80px_1fr]">
+                  <input className={inputCls} placeholder="Icon" value={item.icon} onChange={(e) => update({ icon: e.target.value })} />
+                  <input className={inputCls} placeholder="Label" value={item.label} onChange={(e) => update({ label: e.target.value })} />
+                </div>
+              )}
+            />
+          </Section>
+
+          <Section title="Image gallery">
+            <Repeater
+              items={draft.gallery}
+              onChange={(v) => set('gallery', v)}
+              blank={{ url: '', caption: '' }}
+              addLabel="Add image"
+              render={(item, update) => (
+                <div className="space-y-2">
+                  <ImageField label="Image" value={item.url} onChange={(v) => update({ url: v })} userId={userId} />
+                  <input className={inputCls} placeholder="Caption (optional)" value={item.caption} onChange={(e) => update({ caption: e.target.value })} />
+                </div>
+              )}
+            />
+          </Section>
+
           <Section title="Business links">
             <Field label="Section heading" hint='e.g. "Local Is What We Do."'>
               <input className={inputCls} value={draft.links_heading} onChange={(e) => set('links_heading', e.target.value)} />

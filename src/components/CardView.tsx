@@ -5,9 +5,21 @@ import SocialIcon from './SocialIcon';
 
 interface Props {
   card: Card;
-  /** Disable outbound actions when rendering inside the admin preview. */
   preview?: boolean;
 }
+
+const fontStacks: Record<string, string> = {
+  sans: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  serif: 'Georgia, "Times New Roman", Times, serif',
+  rounded: '"Nunito", ui-rounded, system-ui, -apple-system, sans-serif',
+  slab: '"Roboto Slab", Rockwell, "Courier Bold", Courier, Georgia, serif',
+};
+
+const buttonRadius: Record<string, string> = {
+  rounded: '10px',
+  pill: '9999px',
+  square: '4px',
+};
 
 function ContactIcon({ kind }: { kind: 'call' | 'text' | 'email' | 'web' }) {
   const common = {
@@ -91,7 +103,6 @@ function LeadForm({ card, preview }: Props) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setStatus('sent');
     } catch {
-      // CORS-restricted webhook endpoints: fire-and-forget fallback.
       try {
         await fetch(card.webhook_url, {
           method: 'POST',
@@ -156,8 +167,8 @@ function LeadForm({ card, preview }: Props) {
         <button
           onClick={submit}
           disabled={!canSubmit}
-          className="h-12 w-full rounded-lg text-[15px] font-semibold text-white transition-opacity disabled:opacity-40"
-          style={{ backgroundColor: 'var(--cv-secondary)' }}
+          className="h-12 w-full text-[15px] font-semibold text-white transition-opacity disabled:opacity-40"
+          style={{ backgroundColor: 'var(--cv-secondary)', borderRadius: 'var(--cv-btn-radius)' }}
         >
           {status === 'sending' ? 'Sending…' : 'Send it to me'}
         </button>
@@ -172,10 +183,17 @@ export default function CardView({ card, preview = false }: Props) {
     ? `${window.location.origin}/${card.slug}`
     : window.location.href;
 
+  const btnRadius = buttonRadius[card.button_shape ?? 'rounded'] ?? '10px';
+  const photoRadius = (card.photo_shape ?? 'circle') === 'circle' ? '50%' : '20px';
+  const fontStack = fontStacks[card.font_family ?? 'sans'] ?? fontStacks.sans;
+  const headerStyle = card.header_style ?? 'photo';
+
   const vars = {
     '--cv-primary': card.primary_color || '#EA580C',
     '--cv-secondary': card.secondary_color || '#1E3A8A',
     '--cv-bg': card.background_color || '#EFF6FF',
+    '--cv-btn-radius': btnRadius,
+    '--cv-font': fontStack,
   } as React.CSSProperties;
 
   function share() {
@@ -192,61 +210,123 @@ export default function CardView({ card, preview = false }: Props) {
   }
 
   const solidBtn =
-    'flex h-12 w-full items-center justify-center gap-2 rounded-lg px-4 text-[15px] font-semibold text-white shadow-sm transition-transform active:scale-[0.99]';
+    'flex h-12 w-full items-center justify-center gap-2 px-4 text-[15px] font-semibold text-white shadow-sm transition-transform active:scale-[0.99]';
   const outlineBtn =
-    'flex h-12 w-full items-center justify-center gap-2 rounded-lg border bg-white px-4 text-[15px] font-semibold shadow-sm transition-transform active:scale-[0.99]';
+    'flex h-12 w-full items-center justify-center gap-2 border bg-white px-4 text-[15px] font-semibold shadow-sm transition-transform active:scale-[0.99]';
   const linkProps = preview ? { onClick: (e: React.MouseEvent) => e.preventDefault() } : {};
 
   const shareMail = `mailto:?subject=${encodeURIComponent(card.full_name + ' — digital card')}&body=${encodeURIComponent('Here is my card: ' + cardUrl)}`;
   const shareSms = `sms:?&body=${encodeURIComponent('Here is my card: ' + cardUrl)}`;
 
+  function renderHeader() {
+    if (headerStyle === 'logo') {
+      return (
+        <header className="pt-6 text-center">
+          {card.logo_url && (
+            <div className="flex justify-center">
+              <img src={card.logo_url} alt={card.company || card.full_name} className="max-h-[110px] max-w-[220px] object-contain" />
+            </div>
+          )}
+          {card.banner_photo_url && (
+            <div className="mt-4">
+              <img src={card.banner_photo_url} alt="" className="w-full rounded-xl object-cover" style={{ maxHeight: '160px' }} />
+            </div>
+          )}
+          <div className="mt-5">
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">{card.full_name}</h1>
+            {(card.title || card.company) && (
+              <p className="mt-1 text-lg font-medium text-slate-700">
+                {[card.title, card.company].filter(Boolean).join(' · ')}
+              </p>
+            )}
+            {card.tagline && (
+              <p className="mx-auto mt-2 max-w-[340px] whitespace-pre-line text-[15px] leading-relaxed text-slate-600">
+                {card.tagline}
+              </p>
+            )}
+          </div>
+        </header>
+      );
+    }
+
+    if (headerStyle === 'banner') {
+      return (
+        <header className="text-center">
+          {card.banner_photo_url ? (
+            <img src={card.banner_photo_url} alt="" className="h-[170px] w-full object-cover" />
+          ) : (
+            <div className="h-[170px] w-full" style={{ backgroundColor: 'var(--cv-secondary)', opacity: 0.15 }} />
+          )}
+          <div className="pt-5">
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">{card.full_name}</h1>
+            {(card.title || card.company) && (
+              <p className="mt-1 text-lg font-medium text-slate-700">
+                {[card.title, card.company].filter(Boolean).join(' · ')}
+              </p>
+            )}
+            {card.tagline && (
+              <p className="mx-auto mt-2 max-w-[340px] whitespace-pre-line text-[15px] leading-relaxed text-slate-600">
+                {card.tagline}
+              </p>
+            )}
+          </div>
+        </header>
+      );
+    }
+
+    // 'photo' — default
+    return (
+      <header className="pt-0 text-center">
+        <div className="relative">
+          {card.banner_photo_url ? (
+            <img src={card.banner_photo_url} alt="" className="h-24 w-full rounded-b-xl object-cover" />
+          ) : (
+            <div className="h-16" />
+          )}
+          {card.profile_photo_url && (
+            <img
+              src={card.profile_photo_url}
+              alt={card.full_name}
+              className="absolute left-1/2 top-full h-28 w-28 -translate-x-1/2 -translate-y-1/2 border-4 border-white object-cover shadow-md"
+              style={{ borderRadius: photoRadius }}
+            />
+          )}
+        </div>
+        <div className={card.profile_photo_url ? 'pt-20' : 'pt-4'}>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">{card.full_name}</h1>
+          {(card.title || card.company) && (
+            <p className="mt-1 text-lg font-medium text-slate-700">
+              {[card.title, card.company].filter(Boolean).join(' · ')}
+            </p>
+          )}
+          {card.tagline && (
+            <p className="mx-auto mt-2 max-w-[340px] whitespace-pre-line text-[15px] leading-relaxed text-slate-600">
+              {card.tagline}
+            </p>
+          )}
+        </div>
+      </header>
+    );
+  }
+
   return (
     <div style={vars} className="min-h-full w-full" data-cardview>
       <style>{`
+        [data-cardview] { font-family: var(--cv-font); }
         [data-cardview] .cv-card { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(15,23,42,.08), 0 4px 16px rgba(15,23,42,.06); }
+        [data-cardview] .cv-btn-solid { border-radius: var(--cv-btn-radius); }
+        [data-cardview] .cv-btn-outline { border-radius: var(--cv-btn-radius); }
       `}</style>
       <div className="min-h-screen w-full pb-10" style={{ backgroundColor: 'var(--cv-bg)' }}>
         <div className="mx-auto w-full max-w-[480px] px-4">
-          {/* Header */}
-          <header className="pt-0 text-center">
-            <div className="relative">
-              {card.banner_photo_url ? (
-                <img
-                  src={card.banner_photo_url}
-                  alt=""
-                  className="h-24 w-full rounded-b-xl object-cover"
-                />
-              ) : (
-                <div className="h-16" />
-              )}
-              {card.profile_photo_url && (
-                <img
-                  src={card.profile_photo_url}
-                  alt={card.full_name}
-                  className="absolute left-1/2 top-full h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white object-cover shadow-md"
-                />
-              )}
-            </div>
-            <div className={card.profile_photo_url ? 'pt-20' : 'pt-4'}>
-              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">{card.full_name}</h1>
-              {(card.title || card.company) && (
-                <p className="mt-1 text-lg font-medium text-slate-700">
-                  {[card.title, card.company].filter(Boolean).join(' · ')}
-                </p>
-              )}
-              {card.tagline && (
-                <p className="mx-auto mt-2 max-w-[340px] whitespace-pre-line text-[15px] leading-relaxed text-slate-600">
-                  {card.tagline}
-                </p>
-              )}
-            </div>
-          </header>
+
+          {renderHeader()}
 
           {/* Save contact */}
           <div className="mt-6">
             <button
               onClick={() => !preview && downloadVCard(card)}
-              className={solidBtn}
+              className={`${solidBtn} cv-btn-solid`}
               style={{ backgroundColor: 'var(--cv-primary)' }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -259,26 +339,54 @@ export default function CardView({ card, preview = false }: Props) {
           {/* Contact grid */}
           <div className="mt-4 grid grid-cols-2 gap-3">
             {card.phone && (
-              <a href={`tel:${card.phone}`} {...linkProps} className={outlineBtn} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
+              <a href={`tel:${card.phone}`} {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
                 <ContactIcon kind="call" /> Call me
               </a>
             )}
             {card.sms_number && (
-              <a href={`sms:${card.sms_number}`} {...linkProps} className={outlineBtn} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
+              <a href={`sms:${card.sms_number}`} {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
                 <ContactIcon kind="text" /> Text me
               </a>
             )}
             {card.email && (
-              <a href={`mailto:${card.email}`} {...linkProps} className={outlineBtn} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
+              <a href={`mailto:${card.email}`} {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
                 <ContactIcon kind="email" /> Email me
               </a>
             )}
             {card.website_url && (
-              <a href={card.website_url} target="_blank" rel="noopener noreferrer" {...linkProps} className={outlineBtn} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
+              <a href={card.website_url} target="_blank" rel="noopener noreferrer" {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
                 <ContactIcon kind="web" /> Website
               </a>
             )}
           </div>
+
+          {/* Feature badges */}
+          {card.features?.length > 0 && (
+            <div className="cv-card mt-6 p-4">
+              <div className="grid grid-cols-3 gap-3">
+                {card.features.map((f, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1 text-center">
+                    <span className="text-3xl leading-none">{f.icon}</span>
+                    <span className="text-[13px] font-bold text-slate-800 leading-tight">{f.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* About */}
+          {(card.about_heading || card.about_text) && (
+            <div className="cv-card mt-6 p-5">
+              {card.about_heading && (
+                <h2 className="text-base font-bold text-slate-900">{card.about_heading}</h2>
+              )}
+              {card.about_text && (
+                <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-slate-600">
+                  {card.about_text}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Business links */}
           {card.business_links.length > 0 && (
@@ -294,7 +402,7 @@ export default function CardView({ card, preview = false }: Props) {
                     target="_blank"
                     rel="noopener noreferrer"
                     {...linkProps}
-                    className={solidBtn}
+                    className={`${solidBtn} cv-btn-solid`}
                     style={{ backgroundColor: 'var(--cv-secondary)' }}
                   >
                     {l.label} {l.icon && <span aria-hidden="true">{l.icon}</span>}
@@ -314,7 +422,7 @@ export default function CardView({ card, preview = false }: Props) {
                     target={b.url.startsWith('http') ? '_blank' : undefined}
                     rel="noopener noreferrer"
                     {...linkProps}
-                    className={b.style === 'solid' ? solidBtn : outlineBtn}
+                    className={b.style === 'solid' ? `${solidBtn} cv-btn-solid` : `${outlineBtn} cv-btn-outline`}
                     style={
                       b.style === 'solid'
                         ? { backgroundColor: 'var(--cv-primary)' }
@@ -335,12 +443,12 @@ export default function CardView({ card, preview = false }: Props) {
           {(card.resources_url || card.calendar_url) && (
             <div className="mt-6 space-y-4">
               {card.resources_url && (
-                <a href={card.resources_url} target="_blank" rel="noopener noreferrer" {...linkProps} className={outlineBtn} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
+                <a href={card.resources_url} target="_blank" rel="noopener noreferrer" {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
                   Free resources and information
                 </a>
               )}
               {card.calendar_url && (
-                <a href={card.calendar_url} target="_blank" rel="noopener noreferrer" {...linkProps} className={solidBtn} style={{ backgroundColor: 'var(--cv-primary)' }}>
+                <a href={card.calendar_url} target="_blank" rel="noopener noreferrer" {...linkProps} className={`${solidBtn} cv-btn-solid`} style={{ backgroundColor: 'var(--cv-primary)' }}>
                   Schedule a meeting
                 </a>
               )}
@@ -351,6 +459,20 @@ export default function CardView({ card, preview = false }: Props) {
           {card.form_enabled && (
             <div className="mt-6">
               <LeadForm card={card} preview={preview} />
+            </div>
+          )}
+
+          {/* Gallery */}
+          {card.gallery?.length > 0 && (
+            <div className="mt-6 space-y-4">
+              {card.gallery.map((item, i) => (
+                <div key={i}>
+                  <img src={item.url} alt={item.caption || ''} className="w-full rounded-xl object-cover" />
+                  {item.caption && (
+                    <p className="mt-2 text-center text-sm text-slate-500">{item.caption}</p>
+                  )}
+                </div>
+              ))}
             </div>
           )}
 
@@ -376,17 +498,17 @@ export default function CardView({ card, preview = false }: Props) {
 
           {/* Share + reviews */}
           <div className="mt-8 space-y-3">
-            <a href={shareMail} {...linkProps} className={outlineBtn} style={{ borderColor: '#cbd5e1', color: '#334155' }}>
+            <a href={shareMail} {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: '#cbd5e1', color: '#334155' }}>
               Share by email
             </a>
-            <a href={shareSms} {...linkProps} className={outlineBtn} style={{ borderColor: '#cbd5e1', color: '#334155' }}>
+            <a href={shareSms} {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: '#cbd5e1', color: '#334155' }}>
               Share by text
             </a>
-            <button onClick={share} className={outlineBtn} style={{ borderColor: '#cbd5e1', color: '#334155' }}>
+            <button onClick={share} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: '#cbd5e1', color: '#334155' }}>
               {copied ? 'Link copied' : 'Share this card'}
             </button>
             {card.review_links.map((r, i) => (
-              <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" {...linkProps} className={outlineBtn} style={{ borderColor: '#cbd5e1', color: '#334155' }}>
+              <a key={i} href={r.url} target="_blank" rel="noopener noreferrer" {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: '#cbd5e1', color: '#334155' }}>
                 {r.label}
               </a>
             ))}
@@ -411,9 +533,11 @@ export default function CardView({ card, preview = false }: Props) {
             </div>
           )}
 
-          {/* Footer */}
+          {/* Footer — hide logo here when header_style is 'logo' (already shown at top) */}
           <footer className="mt-10 flex flex-col items-center gap-3 text-center">
-            {card.logo_url && <img src={card.logo_url} alt="" className="max-h-24 max-w-[160px] object-contain" />}
+            {headerStyle !== 'logo' && card.logo_url && (
+              <img src={card.logo_url} alt="" className="max-h-24 max-w-[160px] object-contain" />
+            )}
             {card.footer_text && <p className="text-sm text-slate-500">{card.footer_text}</p>}
           </footer>
         </div>
