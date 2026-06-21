@@ -52,7 +52,8 @@ export default function CardEditor() {
         if (error || !data) {
           setError('Card not found.');
         } else {
-          const { id: cid, created_at, updated_at, ...rest } = data as Card;
+          // Explicitly strip server-managed fields so they never bleed into the update payload
+          const { id: cid, owner_id: _oid, created_at: _ca, updated_at: _ua, ...rest } = data as Card;
           setDraft(rest as CardDraft);
           setCardId(cid);
           setSlugTouched(true);
@@ -87,16 +88,19 @@ export default function CardEditor() {
     const slug = slugify(draftToSave.slug);
     if (!slug || isReservedSlug(slug) || !draftToSave.full_name.trim()) return false;
 
-    // Skip uniqueness check on autosave when slug hasn't changed
+    // Strip any server-managed fields that may have snuck in
+    const { owner_id: _o, id: _i, created_at: _c, updated_at: _u, ...cleanDraft } = draftToSave as unknown as Card;
+    const payload = { ...cleanDraft, slug };
+
     if (cid) {
-      const { error } = await supabase.from('cards').update({ ...draftToSave, slug }).eq('id', cid);
-      if (error) return false;
+      // Use .select() so we can detect RLS silent failures (0 rows returned = blocked)
+      const { data, error } = await supabase.from('cards').update(payload).eq('id', cid).select('id');
+      if (error || !data?.length) return false;
       return true;
     } else {
-      // Check uniqueness before first insert
       const { data: clash } = await supabase.from('cards').select('id').eq('slug', slug).maybeSingle();
       if (clash) return false;
-      const { data, error } = await supabase.from('cards').insert({ ...draftToSave, slug }).select().single();
+      const { data, error } = await supabase.from('cards').insert(payload).select().single();
       if (error || !data) return false;
       setCardId((data as Card).id);
       navigate(`/dashboard/cards/${(data as Card).id}`, { replace: true });
@@ -124,12 +128,15 @@ export default function CardEditor() {
       return;
     }
 
-    const payload = { ...draft, slug };
+    const { owner_id: _o, id: _i, created_at: _c, updated_at: _u, ...cleanDraft } = draft as unknown as Card;
+    const payload = { ...cleanDraft, slug };
     if (cardId) {
-      const { error } = await supabase.from('cards').update(payload).eq('id', cardId);
+      const { data, error } = await supabase.from('cards').update(payload).eq('id', cardId).select('id');
       if (error) {
         if (error.code === '23505') setError(`The slug "/${slug}" is already taken. Try another.`);
         else setError(error.message);
+      } else if (!data?.length) {
+        setError('Save failed — please sign out and back in, then try again.');
       } else {
         setSaveMsg('Saved');
         setDirty(false);
@@ -157,15 +164,17 @@ export default function CardEditor() {
   // Autosave: fire 2s after the last change, only for existing cards
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    // Only autosave cards that have already been saved once (have a cardId)
     if (!dirty || !cardId) return;
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(async () => {
       setSaving(true);
+      setError('');
       const ok = await performSave(draftRef.current, cardIdRef.current);
       if (ok) {
         setSaveMsg('Saved');
         setDirty(false);
+      } else {
+        setError('Autosave failed — click Save to retry.');
       }
       setSaving(false);
     }, AUTOSAVE_DELAY);
