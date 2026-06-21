@@ -3,40 +3,16 @@
 html, body, #root { min-height: 100%; }
 body { font-family: 'Barlow', ui-sans-serif, system-ui, sans-serif; }
 
-/* ── Landing animations ──────────────────────────────────────────────────── */
-
-@keyframes ring-pulse {
-  0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0.75; }
-  100% { transform: translate(-50%, -50%) scale(3.2); opacity: 0; }
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes stamp-press {
-  0%   { opacity: 0; transform: rotate(-9deg) scale(2.2); }
-  38%  { opacity: 1; transform: rotate(-9deg) scale(0.9); }
-  52%  { transform: rotate(-9deg) scale(1.07); }
-  66%  { transform: rotate(-9deg) scale(0.97); }
-  80%  { transform: rotate(-9deg) scale(1.02); }
-  100% { opacity: 1; transform: rotate(-9deg) scale(1); }
-}
+.fade-up { animation: fade-up 0.55s ease both; }
+.fade-up-1 { animation: fade-up 0.55s 0.1s ease both; }
+.fade-up-2 { animation: fade-up 0.55s 0.2s ease both; }
+.fade-up-3 { animation: fade-up 0.55s 0.3s ease both; }
 
-@keyframes ticker-scroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-
-.stamp-press {
-  animation: stamp-press 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.ticker-track {
-  display: flex;
-  width: max-content;
-  animation: ticker-scroll 28s linear infinite;
-}
-
-/* Accessibility: honour reduced-motion */
 @media (prefers-reduced-motion: reduce) {
-  .ticker-track { animation: none; }
-  .stamp-press  { animation: none; opacity: 1; transform: rotate(-9deg) scale(1); }
-  .ring-animate { display: none; }
+  .fade-up, .fade-up-1, .fade-up-2, .fade-up-3 { animation: none; }
 }
