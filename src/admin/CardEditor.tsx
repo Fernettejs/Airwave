@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { emptyCard, slugify, isReservedSlug } from '../lib/types';
@@ -9,6 +9,8 @@ import QRModal from './QRModal';
 import { ColorField, Field, ImageField, Repeater, Section, inputCls } from './fields';
 import { useAuth } from './AuthContext';
 
+const AUTOSAVE_DELAY = 2000;
+
 export default function CardEditor() {
   const { id } = useParams<{ id: string }>();
   const isNew = id === 'new';
@@ -17,20 +19,27 @@ export default function CardEditor() {
   const { session } = useAuth();
   const userId = session?.user.id ?? '';
 
-  const initial = (() => {
-    if (!isNew) return { ...emptyCard };
-    const t = templates.find((x) => x.id === params.get('template'));
-    return t ? t.build() : { ...emptyCard };
-  })();
-
-  const [draft, setDraft] = useState<CardDraft>(initial);
+  const [draft, setDraft] = useState<CardDraft>(() => {
+    if (isNew) {
+      const t = templates.find((x) => x.id === params.get('template'));
+      return t ? t.build() : { ...emptyCard };
+    }
+    return { ...emptyCard };
+  });
   const [cardId, setCardId] = useState<string | null>(null);
   const [slugTouched, setSlugTouched] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [error, setError] = useState('');
+  const [dirty, setDirty] = useState(false);
   const [showQR, setShowQR] = useState(false);
+
+  // Ref to always have the latest cardId in autosave without re-registering the effect
+  const cardIdRef = useRef<string | null>(null);
+  cardIdRef.current = cardId;
+  const draftRef = useRef<CardDraft>(draft);
+  draftRef.current = draft;
 
   useEffect(() => {
     if (isNew) return;
@@ -59,6 +68,7 @@ export default function CardEditor() {
       return next;
     });
     setSaveMsg('');
+    setDirty(true);
   }
 
   const previewCard: Card = useMemo(
@@ -69,28 +79,42 @@ export default function CardEditor() {
       created_at: '',
       updated_at: '',
     }),
-    [draft, cardId]
+    [draft, cardId, userId]
   );
 
+  // Core save logic — returns true on success, false on failure
+  const performSave = useCallback(async (draftToSave: CardDraft, cid: string | null): Promise<boolean> => {
+    const slug = slugify(draftToSave.slug);
+    if (!slug || isReservedSlug(slug) || !draftToSave.full_name.trim()) return false;
+
+    // Skip uniqueness check on autosave when slug hasn't changed
+    if (cid) {
+      const { error } = await supabase.from('cards').update({ ...draftToSave, slug }).eq('id', cid);
+      if (error) return false;
+      return true;
+    } else {
+      // Check uniqueness before first insert
+      const { data: clash } = await supabase.from('cards').select('id').eq('slug', slug).maybeSingle();
+      if (clash) return false;
+      const { data, error } = await supabase.from('cards').insert({ ...draftToSave, slug }).select().single();
+      if (error || !data) return false;
+      setCardId((data as Card).id);
+      navigate(`/dashboard/cards/${(data as Card).id}`, { replace: true });
+      return true;
+    }
+  }, [navigate]);
+
+  // Manual save — shows errors to user
   async function save() {
     setError('');
     setSaveMsg('');
     const slug = slugify(draft.slug);
-    if (!slug) {
-      setError('Slug is required.');
-      return;
-    }
-    if (isReservedSlug(slug)) {
-      setError(`"/${slug}" is a reserved word. Choose a different slug.`);
-      return;
-    }
-    if (!draft.full_name.trim()) {
-      setError('Name is required.');
-      return;
-    }
+    if (!slug) { setError('Slug is required.'); return; }
+    if (isReservedSlug(slug)) { setError(`"/${slug}" is a reserved word. Choose a different slug.`); return; }
+    if (!draft.full_name.trim()) { setError('Name is required.'); return; }
     setSaving(true);
 
-    // uniqueness check
+    // Uniqueness check on manual save
     let q = supabase.from('cards').select('id').eq('slug', slug);
     if (cardId) q = q.neq('id', cardId);
     const { data: clash } = await q.maybeSingle();
@@ -106,7 +130,11 @@ export default function CardEditor() {
       if (error) {
         if (error.code === '23505') setError(`The slug "/${slug}" is already taken. Try another.`);
         else setError(error.message);
-      } else setSaveMsg('Saved');
+      } else {
+        setSaveMsg('Saved');
+        setDirty(false);
+        setDraft((d) => ({ ...d, slug }));
+      }
     } else {
       const { data, error } = await supabase.from('cards').insert(payload).select().single();
       if (error) {
@@ -118,12 +146,44 @@ export default function CardEditor() {
       } else if (data) {
         setCardId((data as Card).id);
         setSaveMsg('Saved');
+        setDirty(false);
+        setDraft((d) => ({ ...d, slug }));
         navigate(`/dashboard/cards/${(data as Card).id}`, { replace: true });
       }
     }
-    setDraft((d) => ({ ...d, slug }));
     setSaving(false);
   }
+
+  // Autosave: fire 2s after the last change, only for existing cards
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    // Only autosave cards that have already been saved once (have a cardId)
+    if (!dirty || !cardId) return;
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(async () => {
+      setSaving(true);
+      const ok = await performSave(draftRef.current, cardIdRef.current);
+      if (ok) {
+        setSaveMsg('Saved');
+        setDirty(false);
+      }
+      setSaving(false);
+    }, AUTOSAVE_DELAY);
+    return () => {
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    };
+  }, [dirty, cardId, draft, performSave]);
+
+  // Warn before closing the tab with unsaved changes
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (dirty) {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [dirty]);
 
   if (loading) {
     return (
@@ -147,7 +207,11 @@ export default function CardEditor() {
           </h1>
           <span className="hidden font-mono text-xs text-slate-400 sm:inline">{publicUrl}</span>
           <div className="ml-auto flex items-center gap-2">
-            {saveMsg && <span className="text-sm font-medium text-green-600">{saveMsg}</span>}
+            {saving && <span className="text-sm text-slate-400">Saving…</span>}
+            {!saving && saveMsg && <span className="text-sm font-medium text-green-600">{saveMsg}</span>}
+            {!saving && dirty && !saveMsg && (
+              <span className="text-sm text-amber-600">Unsaved changes</span>
+            )}
             {error && <span className="max-w-xs truncate text-sm font-medium text-red-600">{error}</span>}
             {cardId && (
               <>
