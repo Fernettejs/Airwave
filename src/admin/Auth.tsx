@@ -44,7 +44,7 @@ export default function Auth({ mode }: { mode: 'login' | 'signup' }) {
     <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-sm">
         <Link to="/" className="text-sm text-slate-400 hover:text-slate-700">
-          ← CardStand
+          ← AirWave.cards
         </Link>
         <h1 className="mt-3 text-lg font-bold text-slate-900">
           {mode === 'signup' ? 'Create your free account' : 'Welcome back'}

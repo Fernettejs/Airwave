@@ -96,7 +96,7 @@ export default function CardList() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <div>
-            <Link to="/" className="text-base font-bold text-slate-900">CardStand</Link>
+            <Link to="/" className="text-base font-bold text-slate-900">AirWave.cards</Link>
             <p className="text-xs text-slate-400">
               {session?.user.email}
               {isAdmin && (
