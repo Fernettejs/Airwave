@@ -6,11 +6,15 @@ import { templates } from '../lib/templates';
 import { useAuth } from './AuthContext';
 import QRModal from './QRModal';
 
-const FREE_CARD_LIMIT = 5; // mirror of the DB trigger, for UI only
+const FREE_CARD_LIMIT = 5;
+
+interface CardWithOwner extends Card {
+  ownerEmail?: string;
+}
 
 export default function CardList() {
-  const { session } = useAuth();
-  const [cards, setCards] = useState<Card[]>([]);
+  const { session, isAdmin } = useAuth();
+  const [cards, setCards] = useState<CardWithOwner[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrCard, setQrCard] = useState<Card | null>(null);
   const [copiedId, setCopiedId] = useState('');
@@ -18,19 +22,37 @@ export default function CardList() {
   const navigate = useNavigate();
 
   async function load() {
-    const { data } = await supabase.from('cards').select('*').order('created_at', { ascending: false });
-    setCards((data as Card[]) ?? []);
+    const { data } = await supabase
+      .from('cards')
+      .select('*')
+      .order('created_at', { ascending: false });
+    const rawCards = (data as Card[]) ?? [];
+
+    if (isAdmin && rawCards.length > 0) {
+      const ownerIds = [...new Set(rawCards.map((c) => c.owner_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .in('id', ownerIds);
+      const emailMap = Object.fromEntries((profiles ?? []).map((p: { id: string; email: string }) => [p.id, p.email]));
+      setCards(rawCards.map((c) => ({ ...c, ownerEmail: emailMap[c.owner_id] })));
+    } else {
+      setCards(rawCards);
+    }
     setLoading(false);
   }
 
   useEffect(() => {
+    if (!isAdmin && isAdmin !== false) return; // wait until isAdmin is resolved
     load();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
 
-  const atLimit = cards.length >= FREE_CARD_LIMIT;
+  const ownCards = cards.filter((c) => c.owner_id === session?.user.id);
+  const atLimit = !isAdmin && ownCards.length >= FREE_CARD_LIMIT;
 
   async function toggleActive(card: Card) {
-    await supabase.from('cards').update({ is_active: !card.is_active }).eq('id', card.id);
+    await supabase.from('cards').update({ is_active: !card.is_active }).eq('id', card.id).select('id');
     load();
   }
 
@@ -75,12 +97,24 @@ export default function CardList() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <div>
             <Link to="/" className="text-base font-bold text-slate-900">CardStand</Link>
-            <p className="text-xs text-slate-400">{session?.user.email}</p>
+            <p className="text-xs text-slate-400">
+              {session?.user.email}
+              {isAdmin && (
+                <span className="ml-2 rounded bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wide">Admin</span>
+              )}
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-slate-500 sm:inline">
-              {cards.length} of {FREE_CARD_LIMIT} cards
-            </span>
+            {!isAdmin && (
+              <span className="hidden text-sm text-slate-500 sm:inline">
+                {ownCards.length} of {FREE_CARD_LIMIT} cards
+              </span>
+            )}
+            {isAdmin && (
+              <span className="hidden text-sm text-slate-500 sm:inline">
+                {cards.length} total card{cards.length !== 1 ? 's' : ''}
+              </span>
+            )}
             <button
               onClick={() => (atLimit ? null : setShowTemplates(true))}
               disabled={atLimit}
@@ -134,6 +168,9 @@ export default function CardList() {
                     )}
                   </p>
                   <p className="truncate font-mono text-xs text-slate-500">/{card.slug}</p>
+                  {isAdmin && card.ownerEmail && (
+                    <p className="truncate text-xs text-slate-400">{card.ownerEmail}</p>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <button onClick={() => copyUrl(card)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-slate-700 hover:bg-slate-50">

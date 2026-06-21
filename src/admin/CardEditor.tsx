@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { emptyCard, slugify, isReservedSlug } from '../lib/types';
-import type { Card, CardDraft } from '../lib/types';
+import type { Card, CardDraft, CardMember } from '../lib/types';
 import { templates } from '../lib/templates';
 import CardView from '../components/CardView';
 import QRModal from './QRModal';
@@ -16,8 +16,14 @@ export default function CardEditor() {
   const isNew = id === 'new';
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { session } = useAuth();
+  const { session, isAdmin } = useAuth();
   const userId = session?.user.id ?? '';
+
+  // ── Members state (admin only) ────────────────────────────────────────────
+  const [members, setMembers] = useState<CardMember[]>([]);
+  const [memberEmail, setMemberEmail] = useState('');
+  const [memberError, setMemberError] = useState('');
+  const [memberSaving, setMemberSaving] = useState(false);
 
   const [draft, setDraft] = useState<CardDraft>(() => {
     if (isNew) {
@@ -61,6 +67,51 @@ export default function CardEditor() {
         setLoading(false);
       });
   }, [id, isNew]);
+
+  // Load members when admin opens an existing card
+  async function loadMembers(cid: string) {
+    const { data } = await supabase
+      .from('card_members')
+      .select('*')
+      .eq('card_id', cid)
+      .order('added_at', { ascending: true });
+    setMembers((data as CardMember[]) ?? []);
+  }
+
+  useEffect(() => {
+    if (isAdmin && cardId) loadMembers(cardId);
+  }, [isAdmin, cardId]);
+
+  async function addMember() {
+    const email = memberEmail.trim().toLowerCase();
+    if (!email || !cardId) return;
+    setMemberError('');
+    setMemberSaving(true);
+    // Look up user_id for this email if they already have an account
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+    const { error } = await supabase.from('card_members').insert({
+      card_id: cardId,
+      email,
+      user_id: (profile as { id: string } | null)?.id ?? null,
+    });
+    if (error) {
+      if (error.code === '23505') setMemberError('That email is already added.');
+      else setMemberError(error.message);
+    } else {
+      setMemberEmail('');
+      loadMembers(cardId);
+    }
+    setMemberSaving(false);
+  }
+
+  async function removeMember(memberId: string) {
+    await supabase.from('card_members').delete().eq('id', memberId);
+    if (cardId) loadMembers(cardId);
+  }
 
   function set<K extends keyof CardDraft>(key: K, value: CardDraft[K]) {
     setDraft((d) => {
@@ -527,6 +578,52 @@ export default function CardEditor() {
               )}
             />
           </Section>
+
+          {isAdmin && cardId && (
+            <Section title="Access">
+              <p className="text-xs text-slate-500">
+                Add email addresses to give other users access to edit this card. They must sign in with the same email.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  className={`${inputCls} flex-1`}
+                  type="email"
+                  placeholder="email@example.com"
+                  value={memberEmail}
+                  onChange={(e) => { setMemberEmail(e.target.value); setMemberError(''); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addMember(); } }}
+                />
+                <button
+                  onClick={addMember}
+                  disabled={memberSaving || !memberEmail.trim()}
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                >
+                  {memberSaving ? 'Adding…' : 'Add'}
+                </button>
+              </div>
+              {memberError && <p className="text-xs text-red-600">{memberError}</p>}
+              {members.length > 0 && (
+                <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white">
+                  {members.map((m) => (
+                    <li key={m.id} className="flex items-center justify-between px-3 py-2">
+                      <div>
+                        <p className="text-sm text-slate-800">{m.email}</p>
+                        {!m.user_id && (
+                          <p className="text-xs text-slate-400">No account yet</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => removeMember(m.id)}
+                        className="text-xs text-red-500 hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          )}
 
           <Section title="Footer">
             <Field label="Footer text" hint='e.g. "©2026 Land Local Leads"'>

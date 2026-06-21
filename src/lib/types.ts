@@ -90,6 +90,14 @@ export interface Card {
 
 export type CardDraft = Omit<Card, 'id' | 'owner_id' | 'created_at' | 'updated_at'>;
 
+export interface CardMember {
+  id: string;
+  card_id: string;
+  email: string;
+  user_id: string | null;
+  added_at: string;
+}
+
 export const emptyCard: CardDraft = {
   slug: '',
   is_active: true,
