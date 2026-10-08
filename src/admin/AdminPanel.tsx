@@ -128,17 +128,14 @@ function RequestsTab() {
     setActionLoading(req.id);
     setError('');
     try {
-      const approvalResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/approve-request`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ''}`,
-        },
-        body: JSON.stringify({ requestId: req.id }),
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) throw new Error('Please sign in again.');
+      const { data: token, error: approvalError } = await supabase.rpc('approve_request_for_admin', {
+        p_request_id: req.id,
+        p_admin_id: session.user.id,
       });
-      const approvalResult = await approvalResponse.json();
-      if (!approvalResponse.ok || typeof approvalResult.token !== 'string') {
-        throw new Error(approvalResult.error ?? 'Could not approve request.');
+      if (approvalError || typeof token !== 'string') {
+        throw new Error('Could not approve request.');
       }
 
       const emailResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
@@ -150,7 +147,7 @@ function RequestsTab() {
         body: JSON.stringify({
           type: 'approval',
           to: req.email,
-          inviteToken: approvalResult.token,
+          inviteToken: token,
         }),
       });
       if (!emailResponse.ok) throw new Error('Request approved, but the email could not be sent.');
@@ -287,23 +284,22 @@ function InvitesTab() {
     }
     try {
       const session = (await supabase.auth.getSession()).data.session;
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-invite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token ?? ''}`,
-        },
-        body: JSON.stringify({
-          email: newInvite.email.trim(),
-          maxUses,
-          note: newInvite.note.trim(),
-        }),
+      if (!session) throw new Error('Please sign in again.');
+
+      const tokenBytes = new Uint8Array(16);
+      crypto.getRandomValues(tokenBytes);
+      const token = Array.from(tokenBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+      const { error: insertError } = await supabase.from('invites').insert({
+        token,
+        email: newInvite.email.trim().toLowerCase() || null,
+        created_by: session.user.id,
+        max_uses: maxUses,
+        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        note: newInvite.note.trim(),
       });
-      const result = await response.json();
-      if (!response.ok || typeof result.token !== 'string') {
-        throw new Error('Could not create invite. Please try again.');
-      }
-      setCreatedToken(result.token);
+      if (insertError) throw insertError;
+
+      setCreatedToken(token);
       setShowCreate(false);
       setNewInvite({ email: '', maxUses: '1', note: '' });
       await load();
