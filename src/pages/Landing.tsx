@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
 const NAVY   = '#0D1B2A';
@@ -13,6 +14,11 @@ const BORDER = '#E2E8F0';
 
 const cond: React.CSSProperties = { fontFamily: "'Barlow Condensed', sans-serif" };
 const sans: React.CSSProperties = { fontFamily: "'Barlow', sans-serif" };
+
+const TRADES = [
+  'HVAC', 'Plumbing', 'Electrical', 'Roofing', 'Landscaping',
+  'Cleaning', 'General Contractor', 'Other',
+];
 
 // ── Icons (inline SVG) ────────────────────────────────────────────────────────
 function Icon({ d, size = 22, color = ORANGE }: { d: string; size?: number; color?: string }) {
@@ -39,83 +45,36 @@ function PhoneMockup() {
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
-      {/* Glow behind the phone */}
       <div style={{
         position: 'absolute', inset: -40,
         background: `radial-gradient(ellipse at center, rgba(37,99,235,0.22) 0%, transparent 70%)`,
         pointerEvents: 'none',
       }} />
-
-      {/* Phone shell */}
       <div style={{
-        width: 230,
-        background: '#1E293B',
-        borderRadius: 44,
-        border: '7px solid #334155',
-        padding: '14px 10px 18px',
+        width: 230, background: '#1E293B', borderRadius: 44,
+        border: '7px solid #334155', padding: '14px 10px 18px',
         boxShadow: '0 50px 100px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.05)',
         position: 'relative',
       }}>
-        {/* Dynamic island */}
-        <div style={{
-          width: 68, height: 20, background: '#0F172A',
-          borderRadius: 12, margin: '0 auto 10px',
-        }} />
-
-        {/* Screen */}
-        <div style={{
-          background: LIGHT, borderRadius: 30,
-          overflow: 'hidden', position: 'relative',
-        }}>
-          {/* Card header gradient */}
-          <div style={{
-            background: `linear-gradient(145deg, ${NAVY} 0%, ${BLUE} 100%)`,
-            padding: '22px 16px 38px',
-            textAlign: 'center',
-          }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.15)',
-              border: '2.5px solid rgba(255,255,255,0.35)',
-              margin: '0 auto 10px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
+        <div style={{ width: 68, height: 20, background: '#0F172A', borderRadius: 12, margin: '0 auto 10px' }} />
+        <div style={{ background: LIGHT, borderRadius: 30, overflow: 'hidden', position: 'relative' }}>
+          <div style={{ background: `linear-gradient(145deg, ${NAVY} 0%, ${BLUE} 100%)`, padding: '22px 16px 38px', textAlign: 'center' }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,255,255,0.15)', border: '2.5px solid rgba(255,255,255,0.35)', margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <span style={{ ...cond, color: WHITE, fontSize: '1.1rem', fontWeight: 900 }}>JR</span>
             </div>
             <div style={{ ...sans, color: WHITE, fontSize: '0.95rem', fontWeight: 700 }}>Jordan Reyes</div>
-            <div style={{ ...sans, color: 'rgba(255,255,255,0.72)', fontSize: '0.62rem', marginTop: 3 }}>
-              Reyes Heating & Air · Midland, MI
-            </div>
+            <div style={{ ...sans, color: 'rgba(255,255,255,0.72)', fontSize: '0.62rem', marginTop: 3 }}>Reyes Heating & Air · Midland, MI</div>
           </div>
-
-          {/* Card body — white card rising over header */}
-          <div style={{
-            background: WHITE,
-            borderRadius: '22px 22px 0 0',
-            marginTop: -18,
-            padding: '16px 14px 20px',
-          }}>
-            {/* Stars */}
+          <div style={{ background: WHITE, borderRadius: '22px 22px 0 0', marginTop: -18, padding: '16px 14px 20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, marginBottom: 10 }}>
-              {[1,2,3,4,5].map(n => (
-                <span key={n} style={{ color: '#F59E0B', fontSize: '0.7rem' }}>★</span>
-              ))}
+              {[1,2,3,4,5].map(n => <span key={n} style={{ color: '#F59E0B', fontSize: '0.7rem' }}>★</span>)}
               <span style={{ ...sans, color: MUTED, fontSize: '0.58rem', marginLeft: 4 }}>4.9 · 84 reviews</span>
             </div>
-
-            {/* Badges */}
             <div style={{ display: 'flex', gap: 5, justifyContent: 'center', marginBottom: 14 }}>
               {['Licensed', 'Insured', '24/7'].map(b => (
-                <span key={b} style={{
-                  ...sans,
-                  background: '#EFF6FF', color: BLUE,
-                  fontSize: '0.55rem', fontWeight: 700,
-                  padding: '2px 7px', borderRadius: 4,
-                }}>{b}</span>
+                <span key={b} style={{ ...sans, background: '#EFF6FF', color: BLUE, fontSize: '0.55rem', fontWeight: 700, padding: '2px 7px', borderRadius: 4 }}>{b}</span>
               ))}
             </div>
-
-            {/* Action buttons */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
               {([
                 { l: 'Call',  bg: ORANGE,   fg: WHITE,  border: 'none' },
@@ -123,81 +82,202 @@ function PhoneMockup() {
                 { l: 'Book',  bg: LIGHT,    fg: TEXT,   border: `1px solid ${BORDER}` },
                 { l: 'Share', bg: LIGHT,    fg: TEXT,   border: `1px solid ${BORDER}` },
               ] as const).map(({ l, bg, fg, border }) => (
-                <div key={l} style={{
-                  ...sans,
-                  background: bg, color: fg, border,
-                  borderRadius: 8, padding: '7px 0',
-                  textAlign: 'center', fontSize: '0.68rem', fontWeight: 600,
-                }}>{l}</div>
+                <div key={l} style={{ ...sans, background: bg, color: fg, border, borderRadius: 8, padding: '7px 0', textAlign: 'center', fontSize: '0.68rem', fontWeight: 600 }}>{l}</div>
               ))}
             </div>
-
-            {/* Save button */}
             <button
               onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 1800); }}
-              style={{
-                ...sans,
-                width: '100%',
-                background: saved ? '#16A34A' : TEXT,
-                color: WHITE,
-                border: 'none', borderRadius: 8,
-                padding: '8px 0', fontSize: '0.68rem', fontWeight: 700,
-                cursor: 'pointer', transition: 'background 0.2s',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-              }}
+              style={{ ...sans, width: '100%', background: saved ? '#16A34A' : TEXT, color: WHITE, border: 'none', borderRadius: 8, padding: '8px 0', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
             >
-              {saved
-                ? <><Icon d={ICONS.check} size={13} color={WHITE} /> Saved to Contacts</>
-                : '+ Save Contact'
-              }
+              {saved ? <><Icon d={ICONS.check} size={13} color={WHITE} /> Saved to Contacts</> : '+ Save Contact'}
             </button>
           </div>
         </div>
-
-        {/* Home indicator */}
-        <div style={{
-          width: 80, height: 4, background: '#475569',
-          borderRadius: 2, margin: '12px auto 0',
-        }} />
+        <div style={{ width: 80, height: 4, background: '#475569', borderRadius: 2, margin: '12px auto 0' }} />
       </div>
     </div>
   );
 }
 
-// ── Reusable components ───────────────────────────────────────────────────────
-function OrangeBtn({ to, children }: { to: string; children: React.ReactNode }) {
-  return (
-    <Link to={to} style={{
-      ...sans,
-      display: 'inline-block',
-      background: ORANGE, color: WHITE,
-      fontWeight: 700, fontSize: '0.95rem',
-      padding: '13px 26px', borderRadius: 8,
-      textDecoration: 'none',
-      boxShadow: '0 4px 14px rgba(234,88,12,0.35)',
-      transition: 'transform 0.15s, box-shadow 0.15s',
-    }}
-    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 20px rgba(234,88,12,0.45)'; }}
-    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 14px rgba(234,88,12,0.35)'; }}
-    >
-      {children}
-    </Link>
-  );
-}
+// ── Request Access Form ───────────────────────────────────────────────────────
+function RequestAccessForm() {
+  const [form, setForm] = useState({
+    full_name: '', business_name: '', trade: '', city: '',
+    email: '', phone: '', referral_source: '',
+  });
+  const [honeypot, setHoneypot] = useState('');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
 
-function OutlineBtn({ to, children }: { to: string; children: React.ReactNode }) {
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
+  const canSubmit =
+    form.full_name.trim() && form.business_name.trim() && form.trade &&
+    form.city.trim() && validEmail && form.phone.trim() && status !== 'submitting';
+
+  function update<K extends keyof typeof form>(key: K, value: string) {
+    setForm(f => ({ ...f, [key]: value }));
+  }
+
+  async function submit() {
+    if (honeypot) return;
+    if (!canSubmit) return;
+    setStatus('submitting');
+    setErrorMsg('');
+
+    try {
+      // Check for duplicate pending request
+      const { data: existing } = await supabase
+        .from('access_requests')
+        .select('id, status')
+        .eq('email', form.email.trim().toLowerCase())
+        .eq('status', 'pending')
+        .maybeSingle();
+
+      if (existing) {
+        setStatus('error');
+        setErrorMsg('You already have a pending request. We will email you when it is reviewed.');
+        return;
+      }
+
+      const { error } = await supabase.from('access_requests').insert({
+        full_name: form.full_name.trim(),
+        business_name: form.business_name.trim(),
+        trade: form.trade,
+        city: form.city.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        referral_source: form.referral_source.trim(),
+      });
+
+      if (error) {
+        if (error.code === '23505' || error.message.includes('duplicate')) {
+          setStatus('error');
+          setErrorMsg('You already have a pending request. We will email you when it is reviewed.');
+        } else {
+          setStatus('error');
+          setErrorMsg('Something went wrong. Please try again.');
+        }
+        return;
+      }
+
+      // Fire webhook (best-effort, non-blocking)
+      const webhookUrl = import.meta.env.VITE_ACCESS_REQUEST_WEBHOOK_URL;
+      if (webhookUrl) {
+        fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...form, source: 'airwave-request' }),
+        }).catch(() => {});
+      }
+
+      // Notify admin via edge function (best-effort)
+      const edgeUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`;
+      fetch(edgeUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          type: 'admin_notification',
+          requestDetails: { ...form },
+          adminEmail: 'team@landlocalleads.com',
+        }),
+      }).catch(() => {});
+
+      setStatus('submitted');
+    } catch {
+      setStatus('error');
+      setErrorMsg('Something went wrong. Please try again.');
+    }
+  }
+
+  if (status === 'submitted') {
+    return (
+      <div style={{ ...sans, maxWidth: 480, margin: '0 auto', padding: '48px 24px', textAlign: 'center' }}>
+        <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(34,197,94,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <Icon d={ICONS.check} size={28} color="#22C55E" />
+        </div>
+        <h2 style={{ ...cond, fontSize: '1.8rem', fontWeight: 800, color: TEXT, marginBottom: 12 }}>
+          Request received
+        </h2>
+        <p style={{ fontSize: '1rem', color: MUTED, lineHeight: 1.7 }}>
+          We review every request and will email you if approved.
+        </p>
+        <Link to="/" style={{ ...sans, display: 'inline-block', marginTop: 24, color: ORANGE, fontWeight: 600, fontSize: '0.9rem', textDecoration: 'none' }}>
+          ← Back to home
+        </Link>
+      </div>
+    );
+  }
+
+  const inputCls: React.CSSProperties = {
+    ...sans, width: '100%', padding: '11px 14px', fontSize: '0.9rem',
+    border: `1px solid ${BORDER}`, borderRadius: 8, outline: 'none',
+    background: WHITE, color: TEXT,
+  };
+
   return (
-    <Link to={to} style={{
-      ...sans,
-      display: 'inline-block',
-      background: 'transparent', color: 'rgba(255,255,255,0.85)',
-      fontWeight: 600, fontSize: '0.95rem',
-      padding: '12px 26px', borderRadius: 8,
-      textDecoration: 'none',
-      border: '1.5px solid rgba(255,255,255,0.25)',
-    }}>
-      {children}
-    </Link>
+    <div style={{ ...sans, maxWidth: 520, margin: '0 auto' }}>
+      {/* Honeypot field — hidden from real users */}
+      <input
+        type="text"
+        tabIndex={-1}
+        autoComplete="off"
+        value={honeypot}
+        onChange={(e) => setHoneypot(e.target.value)}
+        style={{ position: 'absolute', left: '-9999px', opacity: 0 }}
+        aria-hidden="true"
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block">
+          <span style={{ display: 'block', marginBottom: 6, fontSize: '0.82rem', fontWeight: 600, color: TEXT }}>Full name *</span>
+          <input style={inputCls} value={form.full_name} onChange={(e) => update('full_name', e.target.value)} placeholder="Jane Smith" />
+        </label>
+        <label className="block">
+          <span style={{ display: 'block', marginBottom: 6, fontSize: '0.82rem', fontWeight: 600, color: TEXT }}>Business name *</span>
+          <input style={inputCls} value={form.business_name} onChange={(e) => update('business_name', e.target.value)} placeholder="Smith HVAC" />
+        </label>
+        <label className="block">
+          <span style={{ display: 'block', marginBottom: 6, fontSize: '0.82rem', fontWeight: 600, color: TEXT }}>Trade *</span>
+          <select style={inputCls} value={form.trade} onChange={(e) => update('trade', e.target.value)}>
+            <option value="">Select a trade</option>
+            {TRADES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
+        <label className="block">
+          <span style={{ display: 'block', marginBottom: 6, fontSize: '0.82rem', fontWeight: 600, color: TEXT }}>City *</span>
+          <input style={inputCls} value={form.city} onChange={(e) => update('city', e.target.value)} placeholder="Midland, MI" />
+        </label>
+        <label className="block">
+          <span style={{ display: 'block', marginBottom: 6, fontSize: '0.82rem', fontWeight: 600, color: TEXT }}>Email *</span>
+          <input style={inputCls} type="email" value={form.email} onChange={(e) => update('email', e.target.value)} placeholder="you@example.com" />
+        </label>
+        <label className="block">
+          <span style={{ display: 'block', marginBottom: 6, fontSize: '0.82rem', fontWeight: 600, color: TEXT }}>Phone *</span>
+          <input style={inputCls} type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="+1 555 123 4567" />
+        </label>
+      </div>
+      <label className="block" style={{ marginTop: 16 }}>
+        <span style={{ display: 'block', marginBottom: 6, fontSize: '0.82rem', fontWeight: 600, color: MUTED }}>How did you hear about AirWave? (optional)</span>
+        <input style={inputCls} value={form.referral_source} onChange={(e) => update('referral_source', e.target.value)} placeholder="Friend, Facebook, trade show…" />
+      </label>
+      {errorMsg && <p style={{ ...sans, marginTop: 16, fontSize: '0.85rem', fontWeight: 500, color: '#DC2626' }}>{errorMsg}</p>}
+      <button
+        onClick={submit}
+        disabled={!canSubmit}
+        style={{
+          ...sans, marginTop: 20, width: '100%',
+          padding: '13px 0', fontSize: '0.95rem', fontWeight: 700,
+          background: canSubmit ? ORANGE : '#CBD5E1', color: WHITE,
+          border: 'none', borderRadius: 8, cursor: canSubmit ? 'pointer' : 'not-allowed',
+          boxShadow: canSubmit ? '0 4px 14px rgba(234,88,12,0.3)' : 'none',
+          transition: 'background 0.15s',
+        }}
+      >
+        {status === 'submitting' ? 'Submitting…' : 'Request access'}
+      </button>
+    </div>
   );
 }
 
@@ -218,14 +298,6 @@ export default function Landing() {
             <Link to="/login" style={{ ...sans, fontSize: '0.9rem', fontWeight: 600, color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}>
               Sign in
             </Link>
-            <Link to="/signup" style={{
-              ...sans, fontSize: '0.9rem', fontWeight: 700,
-              background: ORANGE, color: WHITE,
-              padding: '9px 20px', borderRadius: 7,
-              textDecoration: 'none',
-            }}>
-              Get started free
-            </Link>
           </div>
         </div>
       </header>
@@ -235,7 +307,6 @@ export default function Landing() {
         <div className="mx-auto max-w-6xl px-5 pt-16 pb-0 sm:pt-24">
           <div className="grid items-end gap-12 lg:grid-cols-2">
 
-            {/* Copy */}
             <div className="pb-16 lg:pb-24">
               <div className="fade-up" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 7,
@@ -268,22 +339,40 @@ export default function Landing() {
                 contacts. Share it as a text, QR code, or tap card — no app needed.
               </p>
 
-              <div className="fade-up-3 flex flex-wrap items-center gap-3" style={{ marginBottom: 32 }}>
-                <OrangeBtn to="/signup">Create your free card →</OrangeBtn>
-                <OutlineBtn to="/login">Sign in</OutlineBtn>
+              <div className="fade-up-3 flex flex-wrap items-center gap-3" style={{ marginBottom: 16 }}>
+                <a href="#request-access" style={{
+                  ...sans,
+                  display: 'inline-block',
+                  background: ORANGE, color: WHITE,
+                  fontWeight: 700, fontSize: '0.95rem',
+                  padding: '13px 26px', borderRadius: 8,
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 14px rgba(234,88,12,0.35)',
+                  transition: 'transform 0.15s, box-shadow 0.15s',
+                }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 20px rgba(234,88,12,0.45)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 14px rgba(234,88,12,0.35)'; }}
+                >
+                  Request access →
+                </a>
+                <Link to="/login" style={{
+                  ...sans,
+                  display: 'inline-block',
+                  background: 'transparent', color: 'rgba(255,255,255,0.85)',
+                  fontWeight: 600, fontSize: '0.95rem',
+                  padding: '12px 26px', borderRadius: 8,
+                  textDecoration: 'none',
+                  border: '1.5px solid rgba(255,255,255,0.25)',
+                }}>
+                  Sign in
+                </Link>
               </div>
 
-              <div className="flex flex-wrap gap-x-6 gap-y-2">
-                {['Free to set up', 'No app to download', 'Works on any phone'].map(f => (
-                  <span key={f} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>
-                    <Icon d={ICONS.check} size={15} color='#4ADE80' />
-                    {f}
-                  </span>
-                ))}
-              </div>
+              <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.45)', marginBottom: 32 }}>
+                AirWave is free and by invitation.
+              </p>
             </div>
 
-            {/* Phone mockup — sits flush with section bottom */}
             <div className="hidden justify-center pb-0 lg:flex">
               <PhoneMockup />
             </div>
@@ -320,30 +409,14 @@ export default function Landing() {
               Up and running in minutes
             </h2>
           </div>
-
           <div className="grid gap-8 sm:grid-cols-3">
             {[
-              {
-                n: '01', title: 'Fill in your info',
-                body: 'Name, phone, trade, service area, booking link, and social profiles. Live preview as you type.',
-              },
-              {
-                n: '02', title: 'Grab your link',
-                body: 'You get a short link and a QR code the moment you save. Print it, text it, or tap it.',
-              },
-              {
-                n: '03', title: 'Get saved in their phone',
-                body: 'Customers save your contact in one tap. Your name shows up when they need a callback.',
-              },
+              { n: '01', title: 'Fill in your info', body: 'Name, phone, trade, service area, booking link, and social profiles. Live preview as you type.' },
+              { n: '02', title: 'Grab your link', body: 'You get a short link and a QR code the moment you save. Print it, text it, or tap it.' },
+              { n: '03', title: 'Get saved in their phone', body: 'Customers save your contact in one tap. Your name shows up when they need a callback.' },
             ].map(({ n, title, body }) => (
               <div key={n} style={{ position: 'relative' }}>
-                <div style={{
-                  ...cond, fontSize: '3.5rem', fontWeight: 900,
-                  color: BORDER, lineHeight: 1, marginBottom: 12,
-                  userSelect: 'none',
-                }}>
-                  {n}
-                </div>
+                <div style={{ ...cond, fontSize: '3.5rem', fontWeight: 900, color: BORDER, lineHeight: 1, marginBottom: 12, userSelect: 'none' }}>{n}</div>
                 <h3 style={{ ...cond, fontWeight: 700, fontSize: '1.2rem', color: TEXT, marginBottom: 8 }}>{title}</h3>
                 <p style={{ fontSize: '0.93rem', color: MUTED, lineHeight: 1.65 }}>{body}</p>
               </div>
@@ -356,14 +429,9 @@ export default function Landing() {
       <section style={{ background: LIGHT, padding: '80px 0', borderTop: `1px solid ${BORDER}` }}>
         <div className="mx-auto max-w-6xl px-5">
           <div style={{ marginBottom: 48 }}>
-            <p style={{ fontSize: '0.8rem', fontWeight: 700, color: ORANGE, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
-              What's on the card
-            </p>
-            <h2 style={{ ...cond, fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', fontWeight: 900, color: TEXT, lineHeight: 1.1 }}>
-              Everything a customer needs to act
-            </h2>
+            <p style={{ fontSize: '0.8rem', fontWeight: 700, color: ORANGE, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>What's on the card</p>
+            <h2 style={{ ...cond, fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', fontWeight: 900, color: TEXT, lineHeight: 1.1 }}>Everything a customer needs to act</h2>
           </div>
-
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { icon: ICONS.phone,    title: 'Tap to call',       body: 'One tap dials your number. No hunting for a saved contact.' },
@@ -371,21 +439,11 @@ export default function Landing() {
               { icon: ICONS.star,     title: 'Reviews visible',   body: 'Your Google or Facebook rating builds trust before they even call.' },
               { icon: ICONS.user,     title: 'Save your contact', body: 'One button adds your full info to their phone contacts.' },
             ].map(({ icon, title, body }) => (
-              <div key={title} style={{
-                background: WHITE, borderRadius: 12,
-                border: `1px solid ${BORDER}`,
-                padding: '24px 20px',
-                transition: 'box-shadow 0.2s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 30px rgba(0,0,0,0.08)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
+              <div key={title} style={{ background: WHITE, borderRadius: 12, border: `1px solid ${BORDER}`, padding: '24px 20px', transition: 'box-shadow 0.2s' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 30px rgba(0,0,0,0.08)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; }}
               >
-                <div style={{
-                  width: 42, height: 42, borderRadius: 10,
-                  background: 'rgba(234,88,12,0.08)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  marginBottom: 14,
-                }}>
+                <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(234,88,12,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
                   <Icon d={icon} size={20} color={ORANGE} />
                 </div>
                 <h3 style={{ ...cond, fontWeight: 700, fontSize: '1.05rem', color: TEXT, marginBottom: 6 }}>{title}</h3>
@@ -400,58 +458,18 @@ export default function Landing() {
       <section style={{ background: NAVY, padding: '80px 0' }}>
         <div className="mx-auto max-w-6xl px-5">
           <div style={{ marginBottom: 48 }}>
-            <p style={{ fontSize: '0.8rem', fontWeight: 700, color: ORANGE, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
-              Share your way
-            </p>
-            <h2 style={{ ...cond, fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', fontWeight: 900, color: WHITE, lineHeight: 1.1 }}>
-              Three ways to hand it over
-            </h2>
+            <p style={{ fontSize: '0.8rem', fontWeight: 700, color: ORANGE, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Share your way</p>
+            <h2 style={{ ...cond, fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', fontWeight: 900, color: WHITE, lineHeight: 1.1 }}>Three ways to hand it over</h2>
           </div>
-
           <div className="grid gap-4 sm:grid-cols-3">
             {[
-              {
-                icon: ICONS.link, label: 'LINK',
-                title: 'Text the link',
-                body: 'Send it after an estimate. Opens on any phone, saves to contacts in one tap.',
-                highlight: false,
-              },
-              {
-                icon: ICONS.qr, label: 'QR CODE',
-                title: 'Stick it on the truck',
-                body: 'Print the QR on your truck door, yard sign, or invoice. They scan it on the spot.',
-                highlight: false,
-              },
-              {
-                icon: ICONS.tap, label: 'TAP CARD',
-                title: 'Tap a card',
-                body: 'Program a NFC card or sticker. Their phone touches it, your card opens instantly.',
-                highlight: true,
-              },
+              { icon: ICONS.link, label: 'LINK', title: 'Text the link', body: 'Send it after an estimate. Opens on any phone, saves to contacts in one tap.', highlight: false },
+              { icon: ICONS.qr, label: 'QR CODE', title: 'Stick it on the truck', body: 'Print the QR on your truck door, yard sign, or invoice. They scan it on the spot.', highlight: false },
+              { icon: ICONS.tap, label: 'TAP CARD', title: 'Tap a card', body: 'Program a NFC card or sticker. Their phone touches it, your card opens instantly.', highlight: true },
             ].map(({ icon, label, title, body, highlight }) => (
-              <div key={label} style={{
-                background: highlight ? 'rgba(37,99,235,0.12)' : 'rgba(255,255,255,0.04)',
-                borderRadius: 12,
-                border: `1px solid ${highlight ? 'rgba(37,99,235,0.5)' : 'rgba(255,255,255,0.1)'}`,
-                padding: '28px 24px',
-                position: 'relative',
-              }}>
-                {highlight && (
-                  <div style={{
-                    position: 'absolute', top: -11, left: 20,
-                    background: BLUE, color: WHITE,
-                    fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em',
-                    padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase',
-                  }}>
-                    Recommended
-                  </div>
-                )}
-                <div style={{
-                  width: 44, height: 44, borderRadius: 10,
-                  background: highlight ? 'rgba(37,99,235,0.2)' : 'rgba(255,255,255,0.07)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  marginBottom: 14,
-                }}>
+              <div key={label} style={{ background: highlight ? 'rgba(37,99,235,0.12)' : 'rgba(255,255,255,0.04)', borderRadius: 12, border: `1px solid ${highlight ? 'rgba(37,99,235,0.5)' : 'rgba(255,255,255,0.1)'}`, padding: '28px 24px', position: 'relative' }}>
+                {highlight && <div style={{ position: 'absolute', top: -11, left: 20, background: BLUE, color: WHITE, fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em', padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase' }}>Recommended</div>}
+                <div style={{ width: 44, height: 44, borderRadius: 10, background: highlight ? 'rgba(37,99,235,0.2)' : 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
                   <Icon d={icon} size={20} color={highlight ? '#93C5FD' : 'rgba(255,255,255,0.6)'} />
                 </div>
                 <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', marginBottom: 6, textTransform: 'uppercase' }}>{label}</div>
@@ -473,21 +491,18 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* ── CTA band ── */}
-      <section style={{ background: WHITE, padding: '96px 0' }}>
+      {/* ── Request access ── */}
+      <section id="request-access" style={{ background: WHITE, padding: '96px 0' }}>
         <div className="mx-auto max-w-2xl px-5 text-center">
-          <h2 style={{
-            ...cond,
-            fontSize: 'clamp(2.2rem, 5vw, 3.4rem)',
-            fontWeight: 900, lineHeight: 1.05, color: TEXT, marginBottom: 16,
-          }}>
-            Stop losing work to whoever's easier to find.
+          <h2 style={{ ...cond, fontSize: 'clamp(2.2rem, 5vw, 3.4rem)', fontWeight: 900, lineHeight: 1.05, color: TEXT, marginBottom: 16 }}>
+            Request access
           </h2>
-          <p style={{ fontSize: '1rem', color: MUTED, lineHeight: 1.7, maxWidth: 420, margin: '0 auto 32px' }}>
-            Give every customer a card they'll actually keep. It takes three minutes and it's free.
+          <p style={{ fontSize: '1rem', color: MUTED, lineHeight: 1.7, maxWidth: 420, margin: '0 auto 40px' }}>
+            AirWave is free and by invitation. Tell us about your business and we will review your request.
           </p>
-          <OrangeBtn to="/signup">Create your free card →</OrangeBtn>
-          <p style={{ fontSize: '0.8rem', color: MUTED, marginTop: 12 }}>No credit card needed. Free forever on the basic plan.</p>
+          <div style={{ textAlign: 'left' }}>
+            <RequestAccessForm />
+          </div>
         </div>
       </section>
 
@@ -499,7 +514,6 @@ export default function Landing() {
           </span>
           <div className="flex items-center gap-6">
             <Link to="/login" style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>Sign in</Link>
-            <Link to="/signup" style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>Sign up</Link>
           </div>
           <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)' }}>© {new Date().getFullYear()} AirWave.cards</span>
         </div>

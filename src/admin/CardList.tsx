@@ -122,6 +122,11 @@ export default function CardList() {
             >
               New card
             </button>
+            {isAdmin && (
+              <Link to="/admin" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Admin
+              </Link>
+            )}
             <button onClick={signOut} className="text-sm text-slate-500 hover:text-slate-800">Sign out</button>
           </div>
         </div>

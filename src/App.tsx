@@ -2,11 +2,13 @@ import { Route, Routes } from 'react-router-dom';
 import Landing from './pages/Landing';
 import PublicCard from './pages/PublicCard';
 import NotFound from './pages/NotFound';
+import Join from './pages/Join';
 import { AuthProvider } from './admin/AuthContext';
 import Auth from './admin/Auth';
 import Protected from './admin/Protected';
 import CardList from './admin/CardList';
 import CardEditor from './admin/CardEditor';
+import AdminPanel from './admin/AdminPanel';
 import { configured } from './lib/supabase';
 
 function NotConfigured() {
@@ -26,11 +28,12 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Auth mode="login" />} />
-        <Route path="/signup" element={<Auth mode="signup" />} />
+        <Route path="/login" element={<Auth />} />
+        <Route path="/join" element={<Join />} />
         <Route element={<Protected />}>
           <Route path="/dashboard" element={<CardList />} />
           <Route path="/dashboard/cards/:id" element={<CardEditor />} />
+          <Route path="/admin" element={<AdminPanel />} />
         </Route>
         <Route path="/:slug" element={<PublicCard />} />
         <Route path="*" element={<NotFound />} />

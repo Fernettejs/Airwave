@@ -171,7 +171,7 @@ export function slugify(input: string): string {
 
 export const RESERVED_SLUGS = [
   'login', 'signup', 'dashboard', 'admin', 'api', 'assets',
-  'auth', 'app', 'account', 'settings', 'new',
+  'auth', 'app', 'account', 'settings', 'new', 'join',
 ];
 
 export function isReservedSlug(slug: string): boolean {
