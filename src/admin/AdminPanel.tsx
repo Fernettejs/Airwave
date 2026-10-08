@@ -149,8 +149,9 @@ function RequestsTab() {
       });
 
       load();
-    } catch {
-      setError('Could not approve request. Please try again.');
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Could not approve request. Please try again.';
+      setError(message);
     }
     setActionLoading(null);
   }
