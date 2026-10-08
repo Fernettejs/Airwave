@@ -518,9 +518,6 @@ export default function CardView({ card, preview = false }: Props) {
             </section>
           )}
 
-          {/* Owner review tools — hidden in preview, shown on public card when passcode is set */}
-          {!preview && card.review_enabled && <ReviewTools card={card} />}
-
           {/* Share + additional reviews */}
           <div className="mt-8 space-y-3">
             <a href={shareMail} {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: '#cbd5e1', color: '#334155' }}>
@@ -565,6 +562,8 @@ export default function CardView({ card, preview = false }: Props) {
             )}
             {card.footer_text && <p className="text-sm text-slate-500">{card.footer_text}</p>}
           </footer>
+
+          {!preview && card.review_enabled && <ReviewTools card={card} />}
         </div>
       </div>
     </div>
