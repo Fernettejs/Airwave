@@ -6,3 +6,6 @@ verify_jwt = true
 
 [functions.approve-request]
 verify_jwt = true
+
+[functions.create-invite]
+verify_jwt = true

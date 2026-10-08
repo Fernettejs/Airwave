@@ -37,51 +37,33 @@ Deno.serve(async (req: Request) => {
     }
 
     const payload = await req.json();
-    if (typeof payload?.requestId !== "string") {
-      return new Response(JSON.stringify({ error: "Invalid request" }), { status: 400, headers: jsonHeaders });
-    }
-
-    const { data: request, error: requestError } = await adminClient
-      .from("access_requests")
-      .select("id, full_name, email, status")
-      .eq("id", payload.requestId)
-      .eq("status", "pending")
-      .maybeSingle();
-    if (requestError || !request) {
-      return new Response(JSON.stringify({ error: "Request not found or already processed." }), { status: 409, headers: jsonHeaders });
+    const email = typeof payload?.email === "string" ? payload.email.trim().toLowerCase() : "";
+    const maxUses = payload?.maxUses;
+    const note = typeof payload?.note === "string" ? payload.note.trim() : "";
+    if ((email && !email.includes("@")) || !Number.isInteger(maxUses) || maxUses < 1 || maxUses > 100) {
+      return new Response(JSON.stringify({ error: "Invalid invite details" }), { status: 400, headers: jsonHeaders });
     }
 
     const tokenBytes = new Uint8Array(16);
     crypto.getRandomValues(tokenBytes);
     const token = Array.from(tokenBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-    const { error: inviteError } = await adminClient.from("invites").insert({
+    const { error: insertError } = await adminClient.from("invites").insert({
       token,
-      email: request.email.toLowerCase(),
+      email: email || null,
       created_by: userData.user.id,
-      max_uses: 1,
+      max_uses: maxUses,
       expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-      note: `Approved: ${request.full_name}`,
+      note,
     });
-    if (inviteError) {
-      console.error("approve-request invite error:", inviteError);
-      return new Response(JSON.stringify({ error: "Could not approve request." }), { status: 500, headers: jsonHeaders });
-    }
 
-    const { data: updatedRequest, error: updateError } = await adminClient
-      .from("access_requests")
-      .update({ status: "approved", reviewed_at: new Date().toISOString(), reviewed_by: userData.user.id })
-      .eq("id", request.id)
-      .eq("status", "pending")
-      .select("id")
-      .maybeSingle();
-    if (updateError || !updatedRequest) {
-      await adminClient.from("invites").delete().eq("token", token);
-      return new Response(JSON.stringify({ error: "Could not approve request." }), { status: 500, headers: jsonHeaders });
+    if (insertError) {
+      console.error("create-invite database error:", insertError);
+      return new Response(JSON.stringify({ error: "Could not create invite." }), { status: 500, headers: jsonHeaders });
     }
 
     return new Response(JSON.stringify({ token }), { status: 200, headers: jsonHeaders });
   } catch (error) {
-    console.error("approve-request error:", error);
-    return new Response(JSON.stringify({ error: "Could not approve request." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    console.error("create-invite error:", error);
+    return new Response(JSON.stringify({ error: "Could not create invite." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

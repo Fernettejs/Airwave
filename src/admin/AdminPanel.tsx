@@ -286,18 +286,27 @@ function InvitesTab() {
       return;
     }
     try {
-      const { data: token, error: rpcError } = await supabase.rpc('create_invite', {
-        p_email: newInvite.email.trim() || null,
-        p_max_uses: maxUses,
-        p_note: newInvite.note.trim(),
+      const session = (await supabase.auth.getSession()).data.session;
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-invite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({
+          email: newInvite.email.trim(),
+          maxUses,
+          note: newInvite.note.trim(),
+        }),
       });
-      if (rpcError) throw rpcError;
-      if (token) {
-        setCreatedToken(token);
-        setShowCreate(false);
-        setNewInvite({ email: '', maxUses: '1', note: '' });
-        load();
+      const result = await response.json();
+      if (!response.ok || typeof result.token !== 'string') {
+        throw new Error('Could not create invite. Please try again.');
       }
+      setCreatedToken(result.token);
+      setShowCreate(false);
+      setNewInvite({ email: '', maxUses: '1', note: '' });
+      await load();
     } catch {
       setError('Could not create invite. Please try again.');
     }
