@@ -21,6 +21,7 @@ export default function ReviewTools({ card }: { card: Card }) {
   const [attempts, setAttempts] = useState(0);
   const [verifying, setVerifying] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [showUnlock, setShowUnlock] = useState(false);
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
 
@@ -72,21 +73,31 @@ export default function ReviewTools({ card }: { card: Card }) {
     setVerifying(false);
   }
 
-  // If no passcode is set, don't show the tools at all
   if (!hasPasscode) return null;
 
-  // ── Passcode entry ──────────────────────────────────────────────────────
   if (!unlocked) {
     const locked = attempts >= 5;
     return (
-      <div className="cv-card mt-6 p-5 text-center">
+      <>
+        <div className="mt-8 text-center">
+          <button type="button" onClick={() => setShowUnlock(true)} className="text-xs text-slate-400 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-600">
+            Manage reviews
+          </button>
+        </div>
+        {showUnlock && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true" aria-labelledby="review-tools-title" onClick={() => setShowUnlock(false)}>
+            <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <div className="mb-2 flex justify-end">
+                <button type="button" onClick={() => setShowUnlock(false)} className="rounded-full bg-white px-3 py-1 text-xl leading-none text-slate-400 shadow hover:text-slate-700" aria-label="Close">×</button>
+              </div>
+              <div className="cv-card mt-0 p-5 text-center">
         <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: 'color-mix(in srgb, var(--cv-secondary) 12%, white)' }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cv-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
         </div>
-        <p className="mt-3 text-sm font-semibold text-slate-800">Review tools</p>
+        <p id="review-tools-title" className="mt-3 text-sm font-semibold text-slate-800">Review tools</p>
         <p className="mt-1 text-xs text-slate-500">Enter your passcode to access review request tools.</p>
         <div className="mt-4 flex gap-2">
           <input
@@ -110,7 +121,11 @@ export default function ReviewTools({ card }: { card: Card }) {
           </button>
         </div>
         {error && <p className="mt-3 text-xs font-medium text-red-600">{error}</p>}
-      </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
