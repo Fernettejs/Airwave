@@ -21,6 +21,17 @@ const buttonRadius: Record<string, string> = {
   square: '4px',
 };
 
+function fillReviewTemplate(template: string, card: Card, reviewLink: string): string {
+  return template
+    .split('{{name}}').join(card.full_name)
+    .split('{{company}}').join(card.company || card.full_name)
+    .split('{{review_link}}').join(reviewLink);
+}
+
+function safeHttpUrl(value: string): string {
+  return /^https?:\/\//i.test(value.trim()) ? value.trim() : '';
+}
+
 function ContactIcon({ kind }: { kind: 'call' | 'text' | 'email' | 'web' }) {
   const common = {
     width: 18,
@@ -217,6 +228,10 @@ export default function CardView({ card, preview = false }: Props) {
 
   const shareMail = `mailto:?subject=${encodeURIComponent(card.full_name + ' — digital card')}&body=${encodeURIComponent('Here is my card: ' + cardUrl)}`;
   const shareSms = `sms:?&body=${encodeURIComponent('Here is my card: ' + cardUrl)}`;
+  const reviewLink = safeHttpUrl(card.review_google_url || '');
+  const reviewSms = fillReviewTemplate(card.review_sms_message || '', card, reviewLink);
+  const reviewEmailSubject = fillReviewTemplate(card.review_email_subject || '', card, reviewLink);
+  const reviewEmail = fillReviewTemplate(card.review_email_message || '', card, reviewLink);
 
   function renderHeader() {
     if (headerStyle === 'logo') {
@@ -496,7 +511,37 @@ export default function CardView({ card, preview = false }: Props) {
             </div>
           )}
 
-          {/* Share + reviews */}
+          {/* Review request */}
+          {card.review_enabled && (reviewLink || reviewSms || reviewEmail) && (
+            <section className="cv-card mt-8 overflow-hidden p-5 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: 'color-mix(in srgb, var(--cv-primary) 14%, white)' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--cv-primary)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z" />
+                </svg>
+              </div>
+              <h2 className="mt-3 text-xl font-bold text-slate-900">{card.review_heading || 'Enjoyed working with us?'}</h2>
+              <p className="mx-auto mt-2 max-w-[330px] text-sm leading-relaxed text-slate-600">{card.review_subtext || 'Sharing your experience helps us reach and serve our community.'}</p>
+              <div className="mt-5 space-y-3">
+                {reviewLink && (
+                  <a href={reviewLink} target="_blank" rel="noopener noreferrer" {...linkProps} className={`${solidBtn} cv-btn-solid`} style={{ backgroundColor: 'var(--cv-primary)' }}>
+                    Leave a Google review
+                  </a>
+                )}
+                {reviewSms && (
+                  <a href={`sms:?&body=${encodeURIComponent(reviewSms)}`} {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
+                    Send by text
+                  </a>
+                )}
+                {reviewEmail && (
+                  <a href={`mailto:?subject=${encodeURIComponent(reviewEmailSubject)}&body=${encodeURIComponent(reviewEmail)}`} {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: 'var(--cv-secondary)', color: 'var(--cv-secondary)' }}>
+                    Send by email
+                  </a>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Share + additional reviews */}
           <div className="mt-8 space-y-3">
             <a href={shareMail} {...linkProps} className={`${outlineBtn} cv-btn-outline`} style={{ borderColor: '#cbd5e1', color: '#334155' }}>
               Share by email

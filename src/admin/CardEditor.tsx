@@ -541,7 +541,50 @@ export default function CardEditor() {
             )}
           </Section>
 
-          <Section title="Review links">
+          <Section title="Review requests">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <label className="flex items-start gap-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={draft.review_enabled}
+                  onChange={(e) => set('review_enabled', e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-slate-900"
+                />
+                <span>
+                  <span className="block font-semibold text-slate-800">Show review request section</span>
+                  <span className="mt-1 block text-xs leading-relaxed text-slate-500">
+                    Add a Google review button plus ready-to-send text and email options to this card.
+                  </span>
+                </span>
+              </label>
+            </div>
+            {draft.review_enabled && (
+              <>
+                <Field label="Google Business Profile review link" hint="Use the link customers should open to leave a Google review.">
+                  <input className={inputCls} value={draft.review_google_url} onChange={(e) => set('review_google_url', e.target.value)} placeholder="https://g.page/r/.../review" />
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Heading">
+                    <input className={inputCls} value={draft.review_heading} onChange={(e) => set('review_heading', e.target.value)} placeholder="Enjoyed working with us?" />
+                  </Field>
+                  <Field label="Supporting text">
+                    <input className={inputCls} value={draft.review_subtext} onChange={(e) => set('review_subtext', e.target.value)} placeholder="We would love to hear about it." />
+                  </Field>
+                </div>
+                <Field label="Text message" hint="Use {{name}}, {{company}}, and {{review_link}} for custom fields.">
+                  <textarea className={`${inputCls} min-h-[96px]`} value={draft.review_sms_message} onChange={(e) => set('review_sms_message', e.target.value)} />
+                </Field>
+                <Field label="Email subject" hint="The email recipient is left blank so the sender can choose who receives it.">
+                  <input className={inputCls} value={draft.review_email_subject} onChange={(e) => set('review_email_subject', e.target.value)} />
+                </Field>
+                <Field label="Email message" hint="Use {{name}}, {{company}}, and {{review_link}} for custom fields.">
+                  <textarea className={`${inputCls} min-h-[96px]`} value={draft.review_email_message} onChange={(e) => set('review_email_message', e.target.value)} />
+                </Field>
+              </>
+            )}
+          </Section>
+
+          <Section title="Additional review links">
             <Repeater
               items={draft.review_links}
               onChange={(v) => set('review_links', v)}

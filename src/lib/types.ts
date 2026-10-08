@@ -69,6 +69,13 @@ export interface Card {
   extra_buttons: ExtraButton[];
   social_links: SocialLink[];
   review_links: ReviewLink[];
+  review_enabled: boolean;
+  review_google_url: string;
+  review_heading: string;
+  review_subtext: string;
+  review_sms_message: string;
+  review_email_subject: string;
+  review_email_message: string;
 
   calendar_url: string;
   resources_url: string;
@@ -126,6 +133,15 @@ export const emptyCard: CardDraft = {
   extra_buttons: [],
   social_links: [],
   review_links: [],
+  review_enabled: false,
+  review_google_url: '',
+  review_heading: '',
+  review_subtext: '',
+  review_sms_message:
+    'Got a minute for a quick review? Sharing your experience helps us reach and serve our community. {{review_link}}',
+  review_email_subject: 'Would you share your experience with {{company}}?',
+  review_email_message:
+    'Got a minute for a quick review? Sharing your experience helps us reach and serve our community. {{review_link}}',
   calendar_url: '',
   resources_url: '',
   about_heading: '',
