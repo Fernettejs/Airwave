@@ -40,6 +40,9 @@ export default function CardEditor() {
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [showReviewQR, setShowReviewQR] = useState(false);
+  const [reviewRecipientPhone, setReviewRecipientPhone] = useState('');
+  const [reviewRecipientEmail, setReviewRecipientEmail] = useState('');
 
   // Ref to always have the latest cardId in autosave without re-registering the effect
   const cardIdRef = useRef<string | null>(null);
@@ -254,6 +257,22 @@ export default function CardEditor() {
   }
 
   const publicUrl = `${window.location.origin}/${slugify(draft.slug) || '…'}`;
+  const reviewUrl = /^https?:\/\//i.test(draft.review_google_url.trim()) ? draft.review_google_url.trim() : '';
+  const fillReviewTemplate = (template: string): string => template
+    .split('{{name}}').join(draft.full_name)
+    .split('{{company}}').join(draft.company || draft.full_name)
+    .split('{{review_link}}').join(reviewUrl);
+  const reviewSmsMessage = fillReviewTemplate(draft.review_sms_message || '');
+  const reviewEmailSubject = fillReviewTemplate(draft.review_email_subject || '');
+  const reviewEmailMessage = fillReviewTemplate(draft.review_email_message || '');
+  const canSendReviewSms = Boolean(reviewUrl && reviewSmsMessage && reviewRecipientPhone.trim());
+  const canSendReviewEmail = Boolean(reviewUrl && reviewEmailMessage && reviewRecipientEmail.trim());
+  const reviewSmsHref = canSendReviewSms
+    ? `sms:${reviewRecipientPhone.trim()}?body=${encodeURIComponent(reviewSmsMessage)}`
+    : undefined;
+  const reviewEmailHref = canSendReviewEmail
+    ? `mailto:${reviewRecipientEmail.trim()}?subject=${encodeURIComponent(reviewEmailSubject)}&body=${encodeURIComponent(reviewEmailMessage)}`
+    : undefined;
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -580,6 +599,51 @@ export default function CardEditor() {
                 <Field label="Email message" hint="Use {{name}}, {{company}}, and {{review_link}} for custom fields.">
                   <textarea className={`${inputCls} min-h-[96px]`} value={draft.review_email_message} onChange={(e) => set('review_email_message', e.target.value)} />
                 </Field>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-800">Send a review request</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                      Enter a customer’s details to open your phone or email app with the message ready. Contact details are only used on this screen and are not saved.
+                    </p>
+                  </div>
+                  {!reviewUrl && (
+                    <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">Add a valid Google review link above to enable these actions.</p>
+                  )}
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <Field label="Customer phone">
+                      <input className={inputCls} type="tel" value={reviewRecipientPhone} onChange={(e) => setReviewRecipientPhone(e.target.value)} placeholder="+1 555 123 4567" />
+                    </Field>
+                    <Field label="Customer email">
+                      <input className={inputCls} type="email" value={reviewRecipientEmail} onChange={(e) => setReviewRecipientEmail(e.target.value)} placeholder="customer@example.com" />
+                    </Field>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <a
+                      href={reviewSmsHref}
+                      onClick={(e) => { if (!canSendReviewSms) e.preventDefault(); }}
+                      className="rounded-lg bg-slate-900 px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-40"
+                      aria-disabled={!canSendReviewSms}
+                    >
+                      Send by text
+                    </a>
+                    <a
+                      href={reviewEmailHref}
+                      onClick={(e) => { if (!canSendReviewEmail) e.preventDefault(); }}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-center text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      aria-disabled={!canSendReviewEmail}
+                    >
+                      Send by email
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setShowReviewQR(true)}
+                      disabled={!reviewUrl}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Show QR code
+                    </button>
+                  </div>
+                </div>
               </>
             )}
           </Section>
@@ -691,6 +755,14 @@ export default function CardEditor() {
       </div>
 
       {showQR && cardId && <QRModal card={previewCard} onClose={() => setShowQR(false)} />}
+      {showReviewQR && reviewUrl && (
+        <QRModal
+          card={previewCard}
+          url={reviewUrl}
+          label="Google review QR code"
+          onClose={() => setShowReviewQR(false)}
+        />
+      )}
     </div>
   );
 }
