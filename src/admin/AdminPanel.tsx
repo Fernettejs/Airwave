@@ -130,13 +130,32 @@ function RequestsTab() {
     try {
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) throw new Error('Please sign in again.');
-      const { data: token, error: approvalError } = await supabase.rpc('approve_request_for_admin', {
-        p_request_id: req.id,
-        p_admin_id: session.user.id,
+
+      const tokenBytes = new Uint8Array(16);
+      crypto.getRandomValues(tokenBytes);
+      const token = Array.from(tokenBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+      const { error: inviteError } = await supabase.from('invites').insert({
+        token,
+        email: req.email.trim().toLowerCase(),
+        created_by: session.user.id,
+        max_uses: 1,
+        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        note: `Approved: ${req.full_name}`,
       });
-      if (approvalError || typeof token !== 'string') {
-        throw new Error('Could not approve request.');
-      }
+      if (inviteError) throw new Error('Could not approve request.');
+
+      const { data: updatedRequest, error: updateError } = await supabase
+        .from('access_requests')
+        .update({
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: session.user.id,
+        })
+        .eq('id', req.id)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle();
+      if (updateError || !updatedRequest) throw new Error('Could not approve request.');
 
       const emailResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
         method: 'POST',
