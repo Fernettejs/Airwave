@@ -13,20 +13,16 @@ export default function PublicCard() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const { data, error } = await supabase
-        .from('cards')
-        .select('*')
-        .eq('slug', slug)
-        .eq('is_active', true)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('get_public_card', { p_slug: slug });
+      const publicCard = (data as Card[] | null)?.[0];
       if (cancelled) return;
-      if (error || !data) {
+      if (error || !publicCard) {
         setState('missing');
         return;
       }
-      setCard(data as Card);
+      setCard(publicCard);
       setState('ready');
-      document.title = `${(data as Card).full_name} — ${(data as Card).company || 'Digital card'}`;
+      document.title = `${publicCard.full_name} — ${publicCard.company || 'Digital card'}`;
     }
     load();
     return () => {

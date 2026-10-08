@@ -22,10 +22,14 @@ export default function CardList() {
   const navigate = useNavigate();
 
   async function load() {
-    const { data } = await supabase
+    let cardQuery = supabase
       .from('cards')
       .select('*')
       .order('created_at', { ascending: false });
+    if (!isAdmin && session?.user.id) {
+      cardQuery = cardQuery.eq('owner_id', session.user.id);
+    }
+    const { data } = await cardQuery;
     const rawCards = (data as Card[]) ?? [];
 
     if (isAdmin && rawCards.length > 0) {
