@@ -76,6 +76,7 @@ export interface Card {
   review_sms_message: string;
   review_email_subject: string;
   review_email_message: string;
+  review_passcode_hash: string;
 
   calendar_url: string;
   resources_url: string;
@@ -142,6 +143,7 @@ export const emptyCard: CardDraft = {
   review_email_subject: 'Would you share your experience with {{company}}?',
   review_email_message:
     'Got a minute for a quick review? Sharing your experience helps us reach and serve our community. {{review_link}}',
+  review_passcode_hash: '',
   calendar_url: '',
   resources_url: '',
   about_heading: '',

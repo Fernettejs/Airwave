@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Card } from '../lib/types';
 import { downloadVCard } from '../lib/vcard';
 import SocialIcon from './SocialIcon';
+import ReviewTools from './ReviewTools';
 
 interface Props {
   card: Card;
@@ -516,6 +517,9 @@ export default function CardView({ card, preview = false }: Props) {
               </a>
             </section>
           )}
+
+          {/* Owner review tools — hidden in preview, shown on public card when passcode is set */}
+          {!preview && card.review_enabled && <ReviewTools card={card} />}
 
           {/* Share + additional reviews */}
           <div className="mt-8 space-y-3">

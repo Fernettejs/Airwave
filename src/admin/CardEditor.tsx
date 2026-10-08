@@ -43,6 +43,11 @@ export default function CardEditor() {
   const [showReviewQR, setShowReviewQR] = useState(false);
   const [reviewRecipientPhone, setReviewRecipientPhone] = useState('');
   const [reviewRecipientEmail, setReviewRecipientEmail] = useState('');
+  const [reviewPasscodeDisplay, setReviewPasscodeDisplay] = useState('');
+  const [reviewPasscodeDirty, setReviewPasscodeDirty] = useState(false);
+  const [reviewPasscodeSaving, setReviewPasscodeSaving] = useState(false);
+  const [reviewPasscodeError, setReviewPasscodeError] = useState('');
+  const [reviewPasscodeSaved, setReviewPasscodeSaved] = useState(false);
 
   // Ref to always have the latest cardId in autosave without re-registering the effect
   const cardIdRef = useRef<string | null>(null);
@@ -66,6 +71,7 @@ export default function CardEditor() {
           setDraft(rest as CardDraft);
           setCardId(cid);
           setSlugTouched(true);
+          setReviewPasscodeDisplay((data as Card).review_passcode_hash ? '••••••••' : '');
         }
         setLoading(false);
       });
@@ -143,7 +149,7 @@ export default function CardEditor() {
     if (!slug || isReservedSlug(slug) || !draftToSave.full_name.trim()) return false;
 
     // Strip any server-managed fields that may have snuck in
-    const { owner_id: _o, id: _i, created_at: _c, updated_at: _u, ...cleanDraft } = draftToSave as unknown as Card;
+    const { owner_id: _o, id: _i, created_at: _c, updated_at: _u, review_passcode_hash: _rph, ...cleanDraft } = draftToSave as unknown as Card;
     const payload = { ...cleanDraft, slug };
 
     if (cid) {
@@ -182,7 +188,7 @@ export default function CardEditor() {
       return;
     }
 
-    const { owner_id: _o, id: _i, created_at: _c, updated_at: _u, ...cleanDraft } = draft as unknown as Card;
+    const { owner_id: _o, id: _i, created_at: _c, updated_at: _u, review_passcode_hash: _rph, ...cleanDraft } = draft as unknown as Card;
     const payload = { ...cleanDraft, slug };
     if (cardId) {
       const { data, error } = await supabase.from('cards').update(payload).eq('id', cardId).select('id');
@@ -598,6 +604,55 @@ export default function CardEditor() {
                 </Field>
                 <Field label="Email message" hint="Use {{name}}, {{company}}, and {{review_link}} for custom fields.">
                   <textarea className={`${inputCls} min-h-[96px]`} value={draft.review_email_message} onChange={(e) => set('review_email_message', e.target.value)} />
+                </Field>
+                <Field label="Review tools passcode" hint="Set a 4–20 character passcode to unlock review tools from the public card. Leave empty to disable.">
+                  <div className="flex items-center gap-2">
+                    <input
+                      className={inputCls}
+                      type="text"
+                      value={reviewPasscodeDisplay}
+                      onChange={(e) => {
+                        setReviewPasscodeDisplay(e.target.value);
+                        setReviewPasscodeDirty(true);
+                      }}
+                      placeholder="No passcode set"
+                      maxLength={20}
+                    />
+                    {reviewPasscodeDirty && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!cardId || !reviewPasscodeDisplay.trim()) {
+                            setReviewPasscodeDirty(false);
+                            return;
+                          }
+                          setReviewPasscodeSaving(true);
+                          const { error: rpcError } = await supabase.rpc('set_review_passcode', {
+                            p_card_id: cardId,
+                            p_passcode: reviewPasscodeDisplay.trim(),
+                          });
+                          setReviewPasscodeSaving(false);
+                          if (rpcError) {
+                            setReviewPasscodeError('Could not save passcode. Please try again.');
+                          } else {
+                            setReviewPasscodeDirty(false);
+                            setReviewPasscodeError('');
+                            setReviewPasscodeSaved(true);
+                            setTimeout(() => setReviewPasscodeSaved(false), 2000);
+                          }
+                        }}
+                        disabled={reviewPasscodeSaving || !reviewPasscodeDisplay.trim()}
+                        className="shrink-0 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                      >
+                        {reviewPasscodeSaving ? 'Saving…' : 'Save passcode'}
+                      </button>
+                    )}
+                  </div>
+                  {reviewPasscodeError && <p className="mt-1 text-xs text-red-600">{reviewPasscodeError}</p>}
+                  {reviewPasscodeSaved && <p className="mt-1 text-xs font-medium text-green-600">Passcode saved</p>}
+                  <p className="mt-1 text-xs text-slate-500">
+                    The passcode is stored securely as a hash. Use it from your saved card to unlock text, email, and QR review tools.
+                  </p>
                 </Field>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                   <div>
