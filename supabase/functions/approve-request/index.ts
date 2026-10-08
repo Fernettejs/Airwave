@@ -22,11 +22,9 @@ Deno.serve(async (req: Request) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authorization } },
     });
-    const serviceClient = createClient(supabaseUrl, serviceRoleKey);
     const { data: userData, error: userError } = await userClient.auth.getUser();
 
     if (userError || !userData.user) {
@@ -44,7 +42,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: token, error } = await serviceClient.rpc("approve_request_for_admin", {
+    const { data: token, error } = await userClient.rpc("approve_request_for_admin", {
       p_request_id: requestId,
       p_admin_id: userData.user.id,
     });
