@@ -128,14 +128,20 @@ function RequestsTab() {
     setActionLoading(req.id);
     setError('');
     try {
-      const { data: token, error: rpcError } = await supabase.rpc('approve_request', {
-        p_request_id: req.id,
+      const approvalResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/approve-request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ requestId: req.id }),
       });
-      if (rpcError) throw rpcError;
-      if (!token) throw new Error('No token returned');
+      const approvalResult = await approvalResponse.json();
+      if (!approvalResponse.ok || typeof approvalResult.token !== 'string') {
+        throw new Error(approvalResult.error ?? 'Could not approve request.');
+      }
 
-      // Send approval email via edge function
-      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
+      const emailResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -144,11 +150,12 @@ function RequestsTab() {
         body: JSON.stringify({
           type: 'approval',
           to: req.email,
-          inviteToken: token,
+          inviteToken: approvalResult.token,
         }),
       });
+      if (!emailResponse.ok) throw new Error('Request approved, but the email could not be sent.');
 
-      load();
+      await load();
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Could not approve request. Please try again.';
       setError(message);
