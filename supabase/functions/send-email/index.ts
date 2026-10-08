@@ -1,5 +1,3 @@
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -14,34 +12,27 @@ Deno.serve(async (req: Request) => {
   try {
     const { type, to, inviteToken, requestDetails, adminEmail } = await req.json();
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const resendApiKey = Deno.env.get("RESEND_API_KEY") ?? "";
-    const fromEmail = Deno.env.get("FROM_EMAIL") ?? "noreply@airwave.cards";
+    const webhookUrl = Deno.env.get("GHL_EMAIL_WEBHOOK_URL") ?? "";
+    const publicUrl = Deno.env.get("PUBLIC_URL") ?? "https://airwave.cards";
 
-    if (!supabaseUrl || !serviceRoleKey) {
+    if (!webhookUrl) {
+      console.log("GHL_EMAIL_WEBHOOK_URL not set — skipping email send");
       return new Response(
-        JSON.stringify({ error: "Server configuration error." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!resendApiKey) {
-      console.log("RESEND_API_KEY not set — skipping email send");
-      return new Response(
-        JSON.stringify({ success: false, message: "Email not configured" }),
+        JSON.stringify({ success: false, message: "Email webhook not configured" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     let subject = "";
     let body = "";
+    let recipient = to;
 
     if (type === "approval") {
-      const joinLink = `${Deno.env.get("PUBLIC_URL") ?? "https://airwave.cards"}/join?invite=${inviteToken}`;
+      const joinLink = `${publicUrl}/join?invite=${inviteToken}`;
       subject = "Your AirWave access is approved";
       body = `You're approved! Create your account here:\n\n${joinLink}\n\nThis link expires in 14 days.\n\nAirWave.cards`;
     } else if (type === "admin_notification") {
+      recipient = adminEmail || to;
       subject = "New AirWave access request";
       body = `New access request received:\n\n` +
         `Name: ${requestDetails?.full_name ?? "—"}\n` +
@@ -51,7 +42,7 @@ Deno.serve(async (req: Request) => {
         `Email: ${requestDetails?.email ?? "—"}\n` +
         `Phone: ${requestDetails?.phone ?? "—"}\n` +
         `Referral: ${requestDetails?.referral_source ?? "—"}\n\n` +
-        `Review at: ${(Deno.env.get("PUBLIC_URL") ?? "https://airwave.cards")}/admin`;
+        `Review at: ${publicUrl}/admin`;
     } else {
       return new Response(
         JSON.stringify({ error: "Unknown email type." }),
@@ -59,23 +50,23 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const res = await fetch("https://api.resend.com/emails", {
+    const res = await fetch(webhookUrl, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: fromEmail,
-        to: type === "admin_notification" ? (adminEmail || to) : to,
+        type,
+        to: recipient,
         subject,
-        text: body,
+        body,
+        inviteToken: inviteToken ?? null,
+        requestDetails: requestDetails ?? null,
+        source: "airwave-email",
       }),
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("Resend API error:", errText);
+      console.error("GHL webhook error:", errText);
       return new Response(
         JSON.stringify({ error: "Could not send email." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
